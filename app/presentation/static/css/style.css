@@ -238,3 +238,45 @@ tr:hover td {
 
 .flash.success { background: rgba(16, 185, 129, 0.2); border: 1px solid var(--success); }
 .flash.error { background: rgba(239, 68, 68, 0.2); border: 1px solid var(--danger); }
+
+/* --- DISEÑO RESPONSIVO PARA MÓVILES --- */
+@media (max-width: 768px) {
+    /* Cambiamos la estructura general para que sea vertical */
+    body {
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Transformamos la barra lateral en una barra superior horizontal */
+    .sidebar {
+        width: 100%;
+        height: auto;
+        min-height: fit-content;
+        position: relative; /* Anula el position: fixed si lo tenías */
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px;
+    }
+
+    /* Ocultamos textos redundantes en móvil para ahorrar espacio (opcional) */
+    .sidebar h2 {
+        margin: 0;
+        font-size: 1.5rem;
+    }
+
+    /* El contenido principal ahora toma el 100% del ancho debajo de la barra */
+    .main-content {
+        width: 100%;
+        margin-left: 0; /* Anula el margen izquierdo si la sidebar era fija */
+        padding: 15px;
+    }
+
+    /* Ajuste para que el panel de login no quede pegado a los bordes */
+    .glass-panel {
+        max-width: 90% !important;
+        margin: 0 auto;
+    }
+}
