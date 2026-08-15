@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farmacia Vannesa</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>Vannesa ⚕️</h2>
+        {% if session.get('user_id') %}
+            <a href="{{ url_for('dashboard.index') }}"><i class="fas fa-home"></i> Dashboard</a>
+            <a href="{{ url_for('inventory.list_products') }}"><i class="fas fa-boxes"></i> Inventario</a>
+            <a href="{{ url_for('sales.index') }}"><i class="fas fa-cash-register"></i> Ventas y Cobro</a>
+            <div style="flex-grow: 1;"></div>
+            <div style="padding: 1rem; color: #94a3b8; font-size: 0.8rem; text-align: center;">Usuario: <br><strong>{{ session.get('username') }}</strong></div>
+            <a href="{{ url_for('auth.logout') }}" style="color: var(--danger);"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
+        {% else %}
+            <div style="flex-grow: 1;"></div>
+            <div style="text-align: center; color: #94a3b8; font-size: 0.8rem; margin-bottom: 2rem;">Inicie sesión para acceder</div>
+        {% endif %}
+    </div>
+    
+    <div class="main-content">
+        <div class="flash-messages">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="flash {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+        
+        {% block content %}{% endblock %}
+    </div>
+
+    <script>
+        // Modal functions
+        function openModal(id) {
+            document.getElementById(id).classList.add('active');
+        }
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,160 @@
+Universidad nacionalUniversidad nacionalNacional deNacional deNacional deNacional dede Ingenieríade Ingeniería
+Universidad nacional
+
+Universidad nacional
+
+Nacional de
+Nacional de
+Nacional de
+Nacional de
+de Ingeniería
+de Ingeniería
+
+Área de Conocimiento de Tecnología de la 
+Información y Comunicación.
+
+
+
+
+Elaborado por:
+Ing. Marvin David CastañedaIng. Marvin David CastañedaBr. Claudio Francisco Arana FuentesCarnet: 2022-0671IBr. Claudio Francisco Arana FuentesCarnet: 2022-0671I
+Ing. Marvin David Castañeda
+Ing. Marvin David Castañeda
+Br. Claudio Francisco Arana Fuentes
+Carnet: 2022-0671I
+
+Br. Claudio Francisco Arana Fuentes
+Carnet: 2022-0671I
+
+Br. Edwin Rodrigo Sevilla Sánchez Carnet: 2022-0809IBr. Edwin Rodrigo Sevilla Sánchez Carnet: 2022-0809IBr. Jester Antonio Mendieta RuízCarnet: 2022-0766IBr. Jester Antonio Mendieta RuízCarnet: 2022-0766I
+Br. Edwin Rodrigo Sevilla Sánchez 
+Carnet: 2022-0809I
+
+Br. Edwin Rodrigo Sevilla Sánchez 
+Carnet: 2022-0809I
+
+Br. Jester Antonio Mendieta Ruíz
+Carnet: 2022-0766I
+
+Br. Jester Antonio Mendieta Ruíz
+Carnet: 2022-0766I
+
+
+
+
+19 de marzo de 2026Managua, Nicaragua19 de marzo de 2026Managua, NicaraguaFecha de entrega del documento
+19 de marzo de 2026
+Managua, Nicaragua
+19 de marzo de 2026
+Managua, Nicaragua
+Diferencia entre la Sintaxis de Análisis y Diseño
+En la ingeniería de software, la sintaxis del análisis y diseño abarcan propósitos divergentes. El análisis se orienta al "QUÉ" debe hacer el sistema, utilizando una sintaxis cercana al usuario y al dominio del negocio (ej. diagramas de casos de uso semánticos, requisitos funcionales descritos en lenguaje natural). Por el contrario, el diseño resuelve el "CÓMO" el sistema implementará y operará dicha solución bajo el capó, usando una sintaxis técnica, sistemática y determinística, orientada a la arquitectura de software, bases de datos (diagramas físicos E-R relacionales) y paradigmas de programación.
+1. Conocer el modelo de negocio
+Farmacia "Vannesa" es un establecimiento vital para el expendio al por menor de medicamentos genéricos y comerciales. Su modelo de negocio se basa en la rotación de inventario con pacientes médicos, despachando un amplio catálogo a clientes en mostrador. Requieren un control sumamente preciso que describa desde dosis y laboratorios hasta un estricto manejo de precios diferenciados (costo para la farmacia y venta final).
+2. Descripción de la situación
+Anteriormente, la integridad de los datos de la farmacia presentaba carencias, evidenciadas por un inventario superficial y limitado en variables (solo existencias y genéricos no diferenciados). Además, el mantenimiento y control del inventario resultaba deficiente debido a la exigente carga de trabajo físico que esto implica. Esta situación conlleva riesgos críticos, tales como perder el rastreo de caducidades, ignorar la presentación real y dosis del fármaco para el control médico, y generar vulnerabilidades al permitir el acceso de personal no autorizado a las listas de precios.
+3. Descripción general del proyecto
+El proyecto actual pretende automatizar el modelo de venta en el entorno de la farmacia a través de un esquema asegurado informáticamente. Esto abarca un sistema seguro de inicio de sesión con encriptación, para proteger el panel operativo. Automatiza además la gestión integral del fármaco de acuerdo a 11 características estructurales, dotando al sistema de capacidad transaccional (cajeros sumando precios en automático) y gráficas estadísticas sobre ventas históricas.
+4. Análisis
+4.1 Diagrama de Casos de Uso
+- [Actor: Personal Autorizado] ---> (CU01: Iniciar Sesión en el Portal)
+- [Actor: Administrador] ---> (CU02: Dar de alta Medicamento Clínico Exhaustivo)
+- [Actor: Vendedor Cajero] ---> (CU03: Compilar y Ejecutar Venta de Mostrador)
+- [Actor: Directivo] ---> (CU04: Monitorear Tablero Predictivo / Dashboard)
+4.2 Tabla de Casos de Usos
+ID
+Caso de Uso
+Actor
+Descripción
+CU01
+Iniciar Sesión
+Administrador
+Ingresar credenciales protegidas con hash criptográfico Werkzeug.
+CU02
+Altas Producto
+Administrador
+Registrar medicamento (11 atributos precisos, ej: Dosis, Lote).
+CU03
+Operación Venta
+Vendedor
+Generar el listado de elementos en caja y deducir la base de datos.
+CU04
+Ver Dashboard
+Gerente
+Visualizar resumen de ingresos netos, tickets cerrados y stock crítico (<10).
+4.3 Diagrama Entidad-Relación (E-R) 
+El diseño de datos se fundamenta en un modelo relacional que asegura el cumplimiento de las propiedades transaccionales ACID (Atomicidad, Consistencia, Aislamiento y Durabilidad). Esta arquitectura es vital para mantener la integridad del inventario y evitar inconsistencias de datos al procesar operaciones de venta de forma concurrente.
+A nivel conceptual, el sistema se articula mediante cuatro entidades principales:
+USER: (id, username, password_hash)
+PRODUCT: (id, name, product_code, generic_name, cost, sale...)
+SALE: (id, total, date)
+SALE_ITEM: (id, quantity, price, subtotal)
+Definición de Cardinalidad: La estructura define relaciones de uno a muchos (1:N) entre las entidades centrales. Específicamente, una venta (SALE) engloba múltiples artículos vendidos (SALE_ITEM), y un registro de inventario (PRODUCT) puede estar asociado a diversas ventas a través de su respectivo detalle de venta (SALE_ITEM).
+
+Modelo de Datos Conceptual
+Motor de bases de datos relacional modelado en disco que satisface las reglas transaccionales ACID (Atomicity, Consistency, Isolation, Durability) para prever inconsistencias al despachar medicamentos concurrentes.
+Diccionario de Datos (Entidad Products)
+Atributo
+Tipo (SQLite)
+Función en el Negocio
+product_code
+TEXT
+Código/Registro de inventario del producto
+generic_name
+TEXT
+Sustancia médica pura (e.g. Paracetamol)
+name
+TEXT
+Nombre comercial de la marca de compra
+dose
+TEXT
+Concentración y gramaje (e.g. 500mg, 100ml)
+presentation
+TEXT
+Configuración de entrega (Caja, Ampolleta...)
+expiration_date
+TEXT
+Corte de caducidad formal
+stock
+INTEGER
+Existencias nominales en la tienda (inventario)
+cost_price
+REAL
+Precio interno de pago al proveedor local
+sale_price
+REAL
+Precificado para ganancia al consumidor
+La Trazabilidad de los Requerimientos
+- Identificadores Funcionales:
+  * RF01: Proteger todas las rutas Web a usuarios maliciosos -> CU01: Implementado mediante inyecciones en la UI y middleware nativo `@login_required`.
+  * RF02: Control de inventarios al nivel médico y económico -> CU02: Resuelto vía repositorios dedicados con inserción de 11 columnas complejas integradas en una modal CSS Grids.
+- Identificadores No Funcionales (Calidad):
+  * RNF01: Desempeño y Arquitectura de la Base de Datos -> Se traza al esquema SQLite incrustado, previniendo microservicios lentos al funcionar "In-Memory" localmente.
+  * RNF02: Aspecto Visual Prémium Dinámico -> Resuelto con Glassmorphism usando Vanilla CSS de alto contraste y esquemas modales para evitar recargas HTTP prolongadas.
+5. Diseño
+5.1 Arquitectura de Sistemas y Casos Prácticos
+El software sigue la convención de "Clean Architecture", la cual se bifurca en dominios, aplicando los 5 principios SOLID: El Dominio maneja objetos crudos de python (Product, Sale, User). La Capa de Aplicación implementa interfaces ("IUserRepository") aplicando así el nivel de Abstracción en vez de ligarse al framework concreto (Open-Closed). La Infraestructura efectúa el mapeo relacional a su motor físico. Finalizando en "Presentación", albergando los Blueprints que operan con Jinja.
+5.2 Interfaz Lógica UI
+Tableros Glassmorphism (paneles sombreados semi transparentes frente a entornos estelares oscuros para reducir desgaste visual prolongado al vendedor en turnos pesados), implementando gráficas con "Chart.js" responsivas y Modales CSS de Doble Columna.
+5.3 Diagrama E-R Lógico/Físico (Esquema)
+Traducción física real de la base alojada en SQLite (Data Definition Language):
+1. users (id INTEGER PRIMARY KEY, username TEXT UNIQUE, password_hash TEXT)
+2. products (id INTEGER PRIMARY KEY, name TEXT, generic_name TEXT, product_code TEXT, description TEXT, stock INTEGER, presentation TEXT, laboratory TEXT, expiration_date TEXT, dose TEXT, cost_price REAL, sale_price REAL)
+3. sales (id INTEGER PRIMARY KEY, total REAL, date TEXT)
+4. sale_items (id INTEGER PRIMARY KEY, sale_id INTEGER [FK], product_id INTEGER [FK], quantity INTEGER, price REAL, subtotal REAL)
+Modelo de datos en Disco Físico
+Directorio de base física de un solo bloque (vannesa_db.sqlite) que garantiza copias de seguridad portátiles unificadas bajo el dialecto SQL de Python "sqlite3".
+6. Codificación
+Pila Operativa e Instrumentos: Lenguaje Python 3, Framework Flask WebServer, Librería de encripción Werkzeug (Manejo de strings de Salting aleatorios combinados contra SHA-256), DB-API local (sqlite3), Renderizado Plantillas (Jinja2 Template Engine), Maquetado nativo HTML5 semántico en formato Glassmorphism y CSS3, Javascript Puro V8 y Chart.js.
+7. Prueba
+Ejecución automatizada y secuencial de pruebas estructurales, entre las validaciones principales destacaron: La revisión M-V-C para retención de accesos clandestinos emitiendo con éxito códigos HTTP 302 hacia `/login`; La verificación de colisiones en la validación del módulo `auth.py`; Confirmación de que el formulario HTML de Inventario codifica correctísimamente los 11 *payloads* bajo una codificación URLEncoded; Verificación final transaccional al realizar la operación "Cajero" (CU03) restando inmediatamente -X enteros en el atributo "Stock" de "products".
+8. Implementación (Diagrama)
+Para la implementación en el hardware de mostrador, la arquitectura de despliegue sugerida es la siguiente (Visualización de Nudos Disparadores en Topología):
+[CLIENTE OPERATIVO]
+     └─> Navegador Web Cromo Interactivo, Pantalla Mostrador (Local Port: 5000)
+             ↓      (Comunicación REST / GET-POST over Localhost)
+[SERVIDOR BACKEND LOCAL]
+     └─> Flask WSGI Web App (Procesador CPU Windows del Mostrador)
+             ↓      (Llamadas SQL mediante driver precompilado genérico)
+[BASE DE DATOS PORTANTE]
+     └─> Fichero binario `vannesa_db.sqlite` resguardado en Disco Sólido M.2

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="glass-panel">
+    <h1>Dashboard Financiero</h1>
+    <p>Resumen de desempeño de Farmacia Vannesa</p>
+</div>
+
+<div class="dashboard-cards">
+    <div class="card">
+        <h3>Ingresos Totales</h3>
+        <div class="value">${{ "%.2f"|format(summary.total_revenue) }}</div>
+    </div>
+    <div class="card">
+        <h3>Ventas Realizadas</h3>
+        <div class="value">{{ summary.total_sales }}</div>
+    </div>
+    <div class="card">
+        <h3>Productos Bajo Stock (<10)</h3>
+        <div class="value" style="color: var(--danger);">{{ summary.low_stock_count }}</div>
+    </div>
+    <div class="card" style="border-left: 4px solid var(--danger);">
+        <h3>Menos Vendido (Mes)</h3>
+        <div class="value" style="font-size: 1.5rem;">
+            {{ summary.least_sold_product.name }}
+            <br><small style="font-size: 0.9rem; color: #94a3b8;">Vendidos: {{ summary.least_sold_product.quantity }}</small>
+        </div>
+    </div>
+</div>
+
+<div style="display: flex; gap: 2rem;">
+    <div class="glass-panel" style="flex: 2;">
+        <h2>Ventas de los Últimos Días</h2>
+        <canvas id="salesChart"></canvas>
+    </div>
+    
+    <div class="glass-panel" style="flex: 1;">
+        <h2>Top Productos Vendidos</h2>
+        <canvas id="productsChart"></canvas>
+    </div>
+</div>
+
+<script>
+    const salesCtx = document.getElementById('salesChart').getContext('2d');
+    const salesData = {{ summary.daily_sales | tojson }};
+    
+    new Chart(salesCtx, {
+        type: 'line',
+        data: {
+            labels: Object.keys(salesData),
+            datasets: [{
+                label: 'Ingresos ($)',
+                data: Object.values(salesData),
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { labels: { color: '#f1f5f9' } }
+            },
+            scales: {
+                y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+            }
+        }
+    });
+
+    const productsCtx = document.getElementById('productsChart').getContext('2d');
+    const productsData = {{ summary.top_products | tojson }};
+    
+    new Chart(productsCtx, {
+        type: 'doughnut',
+        data: {
+            labels: productsData.map(p => p.name),
+            datasets: [{
+                data: productsData.map(p => p.quantity),
+                backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: '#f1f5f9' } }
+            }
+        }
+    });
+</script>
+{% endblock %}

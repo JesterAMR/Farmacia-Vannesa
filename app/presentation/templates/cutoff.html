@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="glass-panel" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h1>Corte Mensual de Inventario y Ventas</h1>
+        <p>Resumen financiero y estado actual del inventario (Mes Actual)</p>
+    </div>
+    <a href="{{ url_for('inventory.list_products') }}" class="btn">
+        <i class="fas fa-arrow-left"></i> Volver al Inventario
+    </a>
+</div>
+
+<div class="dashboard-cards" style="margin-top: 2rem;">
+    <div class="card" style="border-left: 4px solid var(--primary);">
+        <h3>Ingresos del Mes</h3>
+        <div class="value">${{ "%.2f"|format(summary.monthly_sales_revenue) }}</div>
+        <p style="color: #94a3b8; font-size: 0.9rem; margin-top: 0.5rem;">Total vendido durante el mes en curso.</p>
+    </div>
+    <div class="card" style="border-left: 4px solid var(--success);">
+        <h3>Ventas Totales (Histórico)</h3>
+        <div class="value">${{ "%.2f"|format(summary.total_revenue) }}</div>
+        <p style="color: #94a3b8; font-size: 0.9rem; margin-top: 0.5rem;">Ingresos totales recaudados históricamente.</p>
+    </div>
+    <div class="card" style="border-left: 4px solid var(--warning);">
+        <h3>Items Físicos en Inventario</h3>
+        <div class="value">{{ summary.total_items }}</div>
+        <p style="color: #94a3b8; font-size: 0.9rem; margin-top: 0.5rem;">Cajas/Unidades totales en bodega.</p>
+    </div>
+</div>
+
+<div style="display: flex; gap: 2rem; margin-top: 2rem;">
+    <div class="glass-panel" style="flex: 1;">
+        <h2><i class="fas fa-box"></i> Valoración de Inventario (Costo)</h2>
+        <div style="font-size: 2.5rem; font-weight: bold; color: #f8fafc; margin: 1rem 0;">
+            ${{ "%.2f"|format(summary.total_cost_value) }}
+        </div>
+        <p style="color: #94a3b8;">El valor total del inventario actual calculado en base al precio de compra a proveedores. (Capital invertido y retenido).</p>
+    </div>
+    
+    <div class="glass-panel" style="flex: 1;">
+        <h2><i class="fas fa-hand-holding-usd"></i> Valoración de Inventario (Venta)</h2>
+        <div style="font-size: 2.5rem; font-weight: bold; color: var(--success); margin: 1rem 0;">
+            ${{ "%.2f"|format(summary.total_sale_value) }}
+        </div>
+        <p style="color: #94a3b8;">El valor total esperado si se vendiera el 100% del inventario actual a precio de público. (Ingreso potencial bruto).</p>
+    </div>
+</div>
+
+<div class="glass-panel" style="margin-top: 2rem;">
+    <h3>Resumen de Métricas Adicionales</h3>
+    <ul style="list-style: none; padding: 0; color: #e2e8f0; line-height: 2;">
+        <li><i class="fas fa-cubes" style="color: var(--primary); margin-right: 10px;"></i> <strong>Total de Productos Diferentes Registrados:</strong> {{ summary.top_products|length }} (Top) / Referencias únicas varían.</li>
+        <li><i class="fas fa-exclamation-triangle" style="color: var(--danger); margin-right: 10px;"></i> <strong>Productos con Stock Bajo (Menos de 10):</strong> {{ summary.low_stock_count }}</li>
+        <li><i class="fas fa-arrow-down" style="color: var(--danger); margin-right: 10px;"></i> <strong>Producto Menos Vendido del Mes:</strong> {{ summary.least_sold_product.name }} ({{ summary.least_sold_product.quantity }} unidades)</li>
+    </ul>
+    
+    <div style="margin-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem; text-align: center;">
+        <p style="color: #94a3b8;"><i class="fas fa-info-circle"></i> Este corte se genera de forma dinámica en base al estado actual de la base de datos hasta el día de hoy.</p>
+        <button class="btn btn-success" style="margin-top: 1rem;" onclick="window.print()">
+            <i class="fas fa-print"></i> Imprimir Reporte Mensual
+        </button>
+    </div>
+</div>
+{% endblock %}

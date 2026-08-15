@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+.modal-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+.full-width {
+    grid-column: 1 / -1;
+}
+</style>
+
+<div class="glass-panel" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h1>Inventario de Medicamentos</h1>
+        <p>Gestión avanzada de productos farmacéuticos</p>
+    </div>
+    <div style="display: flex; gap: 1rem;">
+        <a href="{{ url_for('dashboard.monthly_cutoff') }}" class="btn" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
+            <i class="fas fa-chart-pie"></i> Corte Mensual
+        </a>
+        <button class="btn btn-success" onclick="openModal('addModal')">
+            <i class="fas fa-plus"></i> Nuevo Medicamento
+        </button>
+    </div>
+</div>
+
+<div class="glass-panel" style="overflow-x: auto;">
+    <table style="min-width: 1000px;">
+        <thead>
+            <tr>
+                <th>Código</th>
+                <th>Nombre Comercial</th>
+                <th>Genérico</th>
+                <th>Presentación</th>
+                <th>Laboratorio</th>
+                <th>Stock</th>
+                <th>Vencimiento</th>
+                <th>P. Costo</th>
+                <th>P. Venta</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in products %}
+            <tr>
+                <td>{{ product.product_code }}</td>
+                <td><strong>{{ product.name }}</strong></td>
+                <td>{{ product.generic_name }}<br><small style="color: #94a3b8;">{{ product.dose }}</small></td>
+                <td>{{ product.presentation }}</td>
+                <td>{{ product.laboratory }}</td>
+                <td>
+                    <span style="color: {{ 'var(--danger)' if product.stock < 10 else 'inherit' }}; font-weight: bold;">
+                        {{ product.stock }}
+                    </span>
+                </td>
+                <td>{{ product.expiration_date }}</td>
+                <td>${{ "%.2f"|format(product.cost_price) }}</td>
+                <td style="color: var(--success); font-weight: bold;">${{ "%.2f"|format(product.sale_price) }}</td>
+                <td>
+                    <button class="btn" style="padding: 0.25rem 0.5rem; background: var(--warning); margin-right: 0.25rem;" onclick="openRestockModal({{ product.id }}, '{{ product.name|replace("'", "\\'") }}')">
+                        <i class="fas fa-box-open"></i>
+                    </button>
+                    <button class="btn" style="padding: 0.25rem 0.5rem;" onclick="openEditModal({{ product.id }}, '{{ product.name|replace("'", "\\'") }}', '{{ product.generic_name|replace("'", "\\'") }}', '{{ product.product_code }}', {{ product.stock }}, '{{ product.presentation }}', '{{ product.laboratory|replace("'", "\\'") }}', '{{ product.expiration_date }}', '{{ product.dose }}', {{ product.cost_price }}, {{ product.sale_price }}, '{{ product.description|replace("'", "\\'") }}')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <form action="{{ url_for('inventory.delete_product', id=product.id) }}" method="POST" style="display: inline;">
+                        <button type="submit" class="btn btn-danger" style="padding: 0.25rem 0.5rem;" onclick="return confirm('¿Seguro que deseas eliminar este registro médico?')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal Agregar -->
+<div id="addModal" class="modal">
+    <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-header">
+            <h3>Registro de Nuevo Medicamento</h3>
+            <button class="close-btn" onclick="closeModal('addModal')">&times;</button>
+        </div>
+        <form action="{{ url_for('inventory.add_product') }}" method="POST">
+            <div class="modal-grid">
+                <div class="form-group">
+                    <label>Código de Producto</label>
+                    <input type="text" name="product_code" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Nombre Comercial</label>
+                    <input type="text" name="name" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Nombre Genérico</label>
+                    <input type="text" name="generic_name" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Laboratorio</label>
+                    <input type="text" name="laboratory" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Presentación</label>
+                    <input type="text" name="presentation" placeholder="Ej. Caja 20 Tabletas" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Dosis</label>
+                    <input type="text" name="dose" placeholder="Ej. 500mg" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Fecha de Vencimiento (Caducidad)</label>
+                    <input type="date" name="expiration_date" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Cantidad (Stock)</label>
+                    <input type="number" name="stock" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Precio de Costo</label>
+                    <input type="number" step="0.01" name="cost_price" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Precio de Venta (Público)</label>
+                    <input type="number" step="0.01" name="sale_price" class="form-control" required>
+                </div>
+
+                <div class="form-group full-width">
+                    <label>Descripción / Indicaciones Adicionales</label>
+                    <textarea name="description" class="form-control"></textarea>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-success" style="width: 100%; margin-top: 1rem;">Registrar Medicamento Seguro</button>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Editar -->
+<div id="editModal" class="modal">
+    <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-header">
+            <h3>Actualizar Medicamento</h3>
+            <button class="close-btn" onclick="closeModal('editModal')">&times;</button>
+        </div>
+        <form id="editForm" method="POST">
+            <div class="modal-grid">
+                <div class="form-group">
+                    <label>Código de Producto</label>
+                    <input type="text" name="product_code" id="editCode" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Nombre Comercial</label>
+                    <input type="text" name="name" id="editName" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Nombre Genérico</label>
+                    <input type="text" name="generic_name" id="editGeneric" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Laboratorio</label>
+                    <input type="text" name="laboratory" id="editLab" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Presentación</label>
+                    <input type="text" name="presentation" id="editPres" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Dosis</label>
+                    <input type="text" name="dose" id="editDose" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Fecha de Vencimiento (Caducidad)</label>
+                    <input type="date" name="expiration_date" id="editExp" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Cantidad (Stock)</label>
+                    <input type="number" name="stock" id="editStock" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Precio de Costo</label>
+                    <input type="number" step="0.01" name="cost_price" id="editCost" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Precio de Venta</label>
+                    <input type="number" step="0.01" name="sale_price" id="editSale" class="form-control" required>
+                </div>
+
+                <div class="form-group full-width">
+                    <label>Descripción / Indicaciones</label>
+                    <textarea name="description" id="editDesc" class="form-control"></textarea>
+                </div>
+            </div>
+            <button type="submit" class="btn" style="width: 100%; margin-top: 1rem;">Actualizar Médico</button>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Reabastecer -->
+<div id="restockModal" class="modal">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+            <h3>Ingreso de Stock</h3>
+            <button class="close-btn" onclick="closeModal('restockModal')">&times;</button>
+        </div>
+        <form id="restockForm" method="POST">
+            <p>Producto: <strong id="restockProductName"></strong></p>
+            <div class="form-group" style="margin-top: 1rem;">
+                <label>Cantidad a Ingresar</label>
+                <input type="number" name="added_quantity" class="form-control" min="1" value="1" required>
+            </div>
+            <button type="submit" class="btn btn-success" style="width: 100%; margin-top: 1rem;">
+                <i class="fas fa-check"></i> Confirmar Ingreso
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openEditModal(id, name, generic, code, stock, pres, lab, exp, dose, cost, sale, desc) {
+        document.getElementById('editForm').action = "/inventory/update/" + id;
+        document.getElementById('editName').value = name;
+        document.getElementById('editGeneric').value = generic;
+        document.getElementById('editCode').value = code;
+        document.getElementById('editStock').value = stock;
+        document.getElementById('editPres').value = pres;
+        document.getElementById('editLab').value = lab;
+        document.getElementById('editExp').value = exp;
+        document.getElementById('editDose').value = dose;
+        document.getElementById('editCost').value = cost;
+        document.getElementById('editSale').value = sale;
+        document.getElementById('editDesc').value = desc;
+        openModal('editModal');
+    }
+
+    function openRestockModal(id, name) {
+        document.getElementById('restockForm').action = "/inventory/restock/" + id;
+        document.getElementById('restockProductName').textContent = name;
+        openModal('restockModal');
+    }
+</script>
+{% endblock %}

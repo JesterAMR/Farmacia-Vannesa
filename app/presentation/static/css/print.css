@@ -1,0 +1,52 @@
+/* Print stylesheet for invoice page */
+@page {
+    margin: 1in;
+}
+
+body {
+    -webkit-print-color-adjust: exact;
+    background: #fff !important;
+    color: #000;
+    font-family: 'Inter', sans-serif;
+}
+
+/* Hide navigation and non-essential elements */
+nav, .btn, .glass-panel > div > button, .glass-panel > div > a {
+    display: none !important;
+}
+
+/* Ensure the invoice container uses full width */
+.glass-panel {
+    max-width: 100% !important;
+    margin: 0 auto;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: #000 !important;
+    page-break-after: avoid;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+}
+
+table th, table td {
+    border: 1px solid #000;
+    padding: 0.5rem;
+    text-align: left;
+}
+
+table th {
+    background: #f0f0f0;
+}
+
+/* Ensure total is aligned right */
+div[style*="text-align: right"] {
+    text-align: right !important;
+}

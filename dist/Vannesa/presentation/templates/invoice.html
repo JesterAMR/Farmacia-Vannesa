@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="glass-panel" style="max-width: 600px; margin: 0 auto;">
+    <div style="text-align: center; border-bottom: 2px dashed rgba(255,255,255,0.2); padding-bottom: 2rem; margin-bottom: 2rem;">
+        <h1>⚕️ Farmacia Vannesa</h1>
+        <p>Comprobante de Venta</p>
+        <p><strong>Recibo #:</strong> {{ sale.id }}</p>
+        <p><strong>Fecha:</strong> {{ sale.date.replace('T', ' ')[:19] }}</p>
+    </div>
+
+    <table style="width: 100%; margin-bottom: 2rem;">
+        <thead>
+            <tr>
+                <th>Desc.</th>
+                <th>Cant.</th>
+                <th>Precio</th>
+                <th style="text-align: right;">Subtotal</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in sale.items %}
+            <tr>
+                <td>{{ item.product_name }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>${{ "%.2f"|format(item.price) }}</td>
+                <td style="text-align: right;">${{ "%.2f"|format(item.subtotal) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div style="text-align: right; border-top: 2px dashed rgba(255,255,255,0.2); padding-top: 1rem;">
+        <h2>Total: ${{ "%.2f"|format(sale.total) }}</h2>
+    </div>
+
+    <div style="text-align: center; margin-top: 3rem;">
+        <button class="btn" onclick="window.print()"><i class="fas fa-print"></i> Imprimir</button>
+        <a href="{{ url_for('sales.index') }}" class="btn" style="background: rgba(255,255,255,0.1);">Volver</a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="display: flex; gap: 2rem;">
+    <!-- Caja (Punto de Venta) -->
+    <div class="glass-panel" style="flex: 2;">
+        <h2><i class="fas fa-shopping-cart"></i> Nueva Venta</h2>
+        <div class="form-group" style="display: flex; gap: 1rem;">
+            <select id="productSelect" class="form-control" style="flex: 2;">
+                <option value="">Seleccione un producto...</option>
+                {% for product in products %}
+                <option value="{{ product.id }}" data-price="{{ product.price }}" data-name="{{ product.name }}" data-stock="{{ product.stock }}">
+                    {{ product.name }} - ${{ "%.2f"|format(product.price) }} (Stock: {{ product.stock }})
+                </option>
+                {% endfor %}
+            </select>
+            <input type="number" id="productQuantity" class="form-control" value="1" min="1" style="flex: 0.5;">
+            <button type="button" class="btn" onclick="addToCart()">Agregar</button>
+        </div>
+
+        <table id="cartTable">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Subtotal</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="cartBody">
+                <!-- Items dinámicos -->
+            </tbody>
+        </table>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
+            <h3>Total: $<span id="cartTotal">0.00</span></h3>
+            <form id="checkoutForm" action="{{ url_for('sales.checkout') }}" method="POST">
+                <input type="hidden" name="items" id="itemsInput">
+                <button type="button" class="btn btn-success" onclick="processCheckout()">Cobrar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Historial de Ventas -->
+    <div class="glass-panel" style="flex: 1; max-height: 80vh; overflow-y: auto;">
+        <h2>Últimas Ventas</h2>
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+            {% for sale in sales[:10] %}
+            <div style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 1rem; border-radius: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong>Venta #{{ sale.id }}</strong><br>
+                    <small style="color: #94a3b8;">{{ sale.date[:16].replace('T', ' ') }}</small>
+                </div>
+                <div style="text-align: right;">
+                    <strong>${{ "%.2f"|format(sale.total) }}</strong><br>
+                    <a href="{{ url_for('sales.invoice', id=sale.id) }}" class="btn" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; margin-top: 5px;">Recibo</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+    let cart = [];
+
+    function addToCart() {
+        const select = document.getElementById('productSelect');
+        const qty = parseInt(document.getElementById('productQuantity').value);
+        
+        if (!select.value) return;
+        
+        const option = select.options[select.selectedIndex];
+        const stock = parseInt(option.getAttribute('data-stock'));
+        
+        if (qty > stock) {
+            alert('Stock insuficiente!');
+            return;
+        }
+
+        const product = {
+            product_id: parseInt(select.value),
+            name: option.getAttribute('data-name'),
+            price: parseFloat(option.getAttribute('data-price')),
+            quantity: qty
+        };
+
+        const existingItem = cart.find(i => i.product_id === product.product_id);
+        if (existingItem) {
+            if (existingItem.quantity + qty > stock) {
+                alert('Stock insuficiente!');
+                return;
+            }
+            existingItem.quantity += qty;
+        } else {
+            cart.push(product);
+        }
+        
+        updateCartUI();
+    }
+
+    function removeCartItem(index) {
+        cart.splice(index, 1);
+        updateCartUI();
+    }
+
+    function updateCartUI() {
+        const tbody = document.getElementById('cartBody');
+        tbody.innerHTML = '';
+        let total = 0;
+
+        cart.forEach((item, index) => {
+            const subtotal = item.price * item.quantity;
+            total += subtotal;
+            
+            tbody.innerHTML += `
+                <tr>
+                    <td>${item.name}</td>
+                    <td>${item.quantity}</td>
+                    <td>$${subtotal.toFixed(2)}</td>
+                    <td><button type="button" class="btn btn-danger" style="padding: 0.25rem 0.5rem;" onclick="removeCartItem(${index})"><i class="fas fa-trash"></i></button></td>
+                </tr>
+            `;
+        });
+
+        document.getElementById('cartTotal').textContent = total.toFixed(2);
+    }
+
+    function processCheckout() {
+        if (cart.length === 0) {
+            alert('El carrito está vacío');
+            return;
+        }
+        document.getElementById('itemsInput').value = JSON.stringify(cart);
+        document.getElementById('checkoutForm').submit();
+    }
+</script>
+{% endblock %}

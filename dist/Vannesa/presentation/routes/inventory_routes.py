@@ -1,0 +1,83 @@
+from flask import Blueprint, render_template, request, redirect, url_for, flash
+from app.application.services.inventory_service import InventoryService
+from app.domain.models.product import Product
+from app.presentation.routes.auth import login_required
+
+def create_inventory_blueprint(inventory_service: InventoryService) -> Blueprint:
+    bp = Blueprint('inventory', __name__, url_prefix='/inventory')
+
+    @bp.route('/')
+    @login_required
+    def list_products():
+        products = inventory_service.get_all_products()
+        return render_template('inventory.html', products=products)
+
+    @bp.route('/add', methods=['POST'])
+    @login_required
+    def add_product():
+        name = request.form.get('name')
+        generic_name = request.form.get('generic_name')
+        product_code = request.form.get('product_code')
+        description = request.form.get('description', '')
+        stock = int(request.form.get('stock'))
+        presentation = request.form.get('presentation')
+        laboratory = request.form.get('laboratory')
+        expiration_date = request.form.get('expiration_date')
+        dose = request.form.get('dose')
+        cost_price = float(request.form.get('cost_price'))
+        sale_price = float(request.form.get('sale_price'))
+        
+        inventory_service.create_product(
+            name, generic_name, product_code, description,
+            stock, presentation, laboratory, expiration_date, dose,
+            cost_price, sale_price
+        )
+        flash('Medicamento agregado correctamente', 'success')
+        return redirect(url_for('inventory.list_products'))
+
+    @bp.route('/update/<int:id>', methods=['POST'])
+    @login_required
+    def update_product(id: int):
+        product = inventory_service.get_product(id)
+        if product:
+            product.name = request.form.get('name')
+            product.generic_name = request.form.get('generic_name')
+            product.product_code = request.form.get('product_code')
+            product.description = request.form.get('description', '')
+            product.stock = int(request.form.get('stock'))
+            product.presentation = request.form.get('presentation')
+            product.laboratory = request.form.get('laboratory')
+            product.expiration_date = request.form.get('expiration_date')
+            product.dose = request.form.get('dose')
+            product.cost_price = float(request.form.get('cost_price'))
+            product.sale_price = float(request.form.get('sale_price'))
+            
+            inventory_service.update_product(product)
+            flash('Medicamento actualizado correctamente', 'success')
+        else:
+            flash('Medicamento no encontrado', 'error')
+        return redirect(url_for('inventory.list_products'))
+
+    @bp.route('/delete/<int:id>', methods=['POST'])
+    @login_required
+    def delete_product(id: int):
+        if inventory_service.delete_product(id):
+            flash('Medicamento eliminado correctamente', 'success')
+        else:
+            flash('No se pudo eliminar', 'error')
+        return redirect(url_for('inventory.list_products'))
+
+    @bp.route('/restock/<int:id>', methods=['POST'])
+    @login_required
+    def restock_product(id: int):
+        added_quantity = int(request.form.get('added_quantity', 0))
+        if added_quantity > 0:
+            if inventory_service.restock_product(id, added_quantity):
+                flash(f'Inventario reabastecido (+{added_quantity}) exitosamente', 'success')
+            else:
+                flash('Hubo un error al reabastecer el inventario', 'error')
+        else:
+            flash('Cantidad debe ser mayor a 0', 'error')
+        return redirect(url_for('inventory.list_products'))
+
+    return bp

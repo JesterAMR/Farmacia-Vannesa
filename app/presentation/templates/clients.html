@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+.modal-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+.full-width {
+    grid-column: 1 / -1;
+}
+</style>
+
+<div class="glass-panel" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h1>Gestión de Clientes</h1>
+        <p>Catálogo unificado para facturación personalizada</p>
+    </div>
+    <div>
+        <button class="btn btn-success" onclick="openModal('addClientModal')">
+            <i class="fas fa-plus"></i> Nuevo Cliente
+        </button>
+    </div>
+</div>
+
+<div class="glass-panel" style="overflow-x: auto;">
+    <table style="width: 100%;">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Cédula/RUC</th>
+                <th>Email</th>
+                <th>Teléfono</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for client in clients %}
+            <tr>
+                <td>{{ client.id }}</td>
+                <td><strong>{{ client.name }}</strong></td>
+                <td>{{ client.identity_card }}</td>
+                <td>{{ client.email or 'N/A' }}</td>
+                <td>{{ client.phone or 'N/A' }}</td>
+                <td>
+                    <button class="btn" style="padding: 0.25rem 0.5rem; background: var(--primary);" onclick="openEditClientModal({{ client.id }}, '{{ client.name|replace("'", "\\'") }}', '{{ client.identity_card|replace("'", "\\'") }}', '{{ (client.email or "")|replace("'", "\\'") }}', '{{ (client.phone or "")|replace("'", "\\'") }}')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    {% if session.get('role') == 'admin' %}
+                    <form action="{{ url_for('client.delete', id=client.id) }}" method="POST" style="display: inline;">
+                        <button type="submit" class="btn btn-danger" style="padding: 0.25rem 0.5rem;" onclick="return confirm('¿Seguro que deseas eliminar este cliente?')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal Agregar -->
+<div id="addClientModal" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3>Registro de Nuevo Cliente</h3>
+            <button class="close-btn" onclick="closeModal('addClientModal')">&times;</button>
+        </div>
+        <form action="{{ url_for('client.add') }}" method="POST">
+            <div class="modal-grid">
+                <div class="form-group full-width">
+                    <label>Nombre Completo</label>
+                    <input type="text" name="name" class="form-control" required>
+                </div>
+                <div class="form-group full-width">
+                    <label>Cédula o RUC</label>
+                    <input type="text" name="identity_card" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Correo Electrónico (Opcional)</label>
+                    <input type="email" name="email" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Teléfono (Opcional)</label>
+                    <input type="text" name="phone" class="form-control">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-success" style="width: 100%; margin-top: 1rem;">Registrar Cliente</button>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Editar -->
+<div id="editClientModal" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3>Actualizar Datos del Cliente</h3>
+            <button class="close-btn" onclick="closeModal('editClientModal')">&times;</button>
+        </div>
+        <form id="editClientForm" method="POST">
+            <div class="modal-grid">
+                <div class="form-group full-width">
+                    <label>Nombre Completo</label>
+                    <input type="text" name="name" id="editClientName" class="form-control" required>
+                </div>
+                <div class="form-group full-width">
+                    <label>Cédula o RUC</label>
+                    <input type="text" name="identity_card" id="editClientIdentity" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Correo Electrónico</label>
+                    <input type="email" name="email" id="editClientEmail" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Teléfono</label>
+                    <input type="text" name="phone" id="editClientPhone" class="form-control">
+                </div>
+            </div>
+            <button type="submit" class="btn" style="width: 100%; margin-top: 1rem;">Actualizar Cliente</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openEditClientModal(id, name, identity, email, phone) {
+        document.getElementById('editClientForm').action = "/clients/update/" + id;
+        document.getElementById('editClientName').value = name;
+        document.getElementById('editClientIdentity').value = identity;
+        document.getElementById('editClientEmail').value = email;
+        document.getElementById('editClientPhone').value = phone;
+        openModal('editClientModal');
+    }
+</script>
+{% endblock %}
