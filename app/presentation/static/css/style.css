@@ -209,6 +209,8 @@ tr:hover td {
     padding: 2rem;
     width: 90%;
     max-width: 500px;
+    max-height: 85vh;
+    overflow-y: auto;
 }
 
 .modal-header {
