@@ -21,8 +21,8 @@ class InventoryService:
     def get_product(self, id: int) -> Optional[Product]:
         return self._product_repository.get_by_id(id)
 
-    def get_all_products(self) -> List[Product]:
-        return self._product_repository.get_all()
+    def get_all_products(self, include_inactive: bool = False) -> List[Product]:
+        return self._product_repository.get_all(include_inactive=include_inactive)
 
     def update_product(self, product: Product) -> Product:
         return self._product_repository.update(product)

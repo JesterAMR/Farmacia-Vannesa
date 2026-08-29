@@ -11,8 +11,9 @@ def create_inventory_blueprint(inventory_service: InventoryService, audit_servic
     @login_required
     @admin_required
     def list_products():
-        products = inventory_service.get_all_products()
-        return render_template('inventory.html', products=products)
+        show_inactive = request.args.get('show_inactive', 'false') == 'true'
+        products = inventory_service.get_all_products(include_inactive=show_inactive)
+        return render_template('inventory.html', products=products, show_inactive=show_inactive)
 
     @bp.route('/add', methods=['POST'])
     @login_required
@@ -80,16 +81,34 @@ def create_inventory_blueprint(inventory_service: InventoryService, audit_servic
         if product:
             if inventory_service.delete_product(id):
                 audit_service.log_action(
-                    action=f"Eliminó medicamento: {product.name}",
+                    action=f"Desactivó medicamento: {product.name}",
                     user_id=session.get('user_id'),
                     details=f"Código: {product.product_code}"
                 )
-                flash('Medicamento eliminado correctamente', 'success')
+                flash('Medicamento desactivado correctamente', 'success')
             else:
-                flash('No se pudo eliminar', 'error')
+                flash('No se pudo desactivar', 'error')
         else:
             flash('Medicamento no encontrado', 'error')
         return redirect(url_for('inventory.list_products'))
+
+    @bp.route('/reactivate/<int:id>', methods=['POST'])
+    @login_required
+    @admin_required
+    def reactivate_product(id: int):
+        product = inventory_service.get_product(id)
+        if product:
+            product.is_active = True
+            inventory_service.update_product(product)
+            audit_service.log_action(
+                action=f"Reactivó medicamento: {product.name}",
+                user_id=session.get('user_id'),
+                details=f"Código: {product.product_code}"
+            )
+            flash('Medicamento reactivado correctamente', 'success')
+        else:
+            flash('Medicamento no encontrado', 'error')
+        return redirect(url_for('inventory.list_products', show_inactive=True))
 
     @bp.route('/restock/<int:id>', methods=['POST'])
     @login_required

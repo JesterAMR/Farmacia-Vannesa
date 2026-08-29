@@ -24,6 +24,13 @@
     </div>
 </div>
 
+<div class="glass-panel" style="margin-bottom: 2rem; padding: 1.5rem;">
+    <div class="form-group" style="margin-bottom: 0;">
+        <label for="clientSearchInput" style="margin-bottom: 0.25rem;">Buscar Cliente</label>
+        <input type="text" id="clientSearchInput" class="form-control" placeholder="Buscar por nombre, cédula, RUC, correo o teléfono..." onkeyup="filterClients()">
+    </div>
+</div>
+
 <div class="glass-panel" style="overflow-x: auto;">
     <table style="width: 100%;">
         <thead>
@@ -38,7 +45,7 @@
         </thead>
         <tbody>
             {% for client in clients %}
-            <tr>
+            <tr class="client-row" data-name="{{ client.name|lower }}" data-identity="{{ client.identity_card|lower }}" data-email="{{ (client.email or '')|lower }}" data-phone="{{ (client.phone or '')|lower }}">
                 <td>{{ client.id }}</td>
                 <td><strong>{{ client.name }}</strong></td>
                 <td>{{ client.identity_card }}</td>
@@ -132,6 +139,21 @@
         document.getElementById('editClientEmail').value = email;
         document.getElementById('editClientPhone').value = phone;
         openModal('editClientModal');
+    }
+
+    function filterClients() {
+        const searchVal = document.getElementById("clientSearchInput").value.toLowerCase();
+        const rows = document.querySelectorAll(".client-row");
+        
+        rows.forEach(row => {
+            const name = row.getAttribute("data-name");
+            const identity = row.getAttribute("data-identity");
+            const email = row.getAttribute("data-email");
+            const phone = row.getAttribute("data-phone");
+            
+            const match = name.includes(searchVal) || identity.includes(searchVal) || email.includes(searchVal) || phone.includes(searchVal);
+            row.style.display = match ? "" : "none";
+        });
     }
 </script>
 {% endblock %}

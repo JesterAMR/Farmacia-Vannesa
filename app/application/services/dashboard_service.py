@@ -9,12 +9,11 @@ class DashboardService:
         self._audit_service = audit_service
 
     def get_summary(self):
+        return self.get_summary_for_range('7days')
+
+    def get_summary_for_range(self, range_type: str, start_date_str=None, end_date_str=None):
         sales = self._sale_repository.get_all()
         products = self._product_repository.get_all()
-        
-        total_revenue = sum(sale.total for sale in sales)
-        total_sales = len(sales)
-        low_stock_products = sum(1 for p in products if p.stock < 10)
         
         import datetime as dt_mod
         
@@ -24,7 +23,6 @@ class DashboardService:
                     return dt_mod.datetime.strptime(date_str, fmt).date()
                 except ValueError:
                     pass
-            # Split by T or space
             cleaned = date_str.replace("T", " ").split(" ")[0]
             for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y"):
                 try:
@@ -33,48 +31,68 @@ class DashboardService:
                     pass
             return dt_mod.date.today()
 
-        # Collect all unique months in sales
-        all_months = set()
-        for sale in sales:
-            parsed_sale_date = parse_date(sale.date)
-            all_months.add(parsed_sale_date.strftime("%Y-%m"))
+        today = dt_mod.date.today()
+        start_date = None
+        end_date = None
+        
+        if range_type == '7days':
+            start_date = today - dt_mod.timedelta(days=6)
+            end_date = today
+        elif range_type == 'weekly':
+            # Start of current week (Monday)
+            start_date = today - dt_mod.timedelta(days=today.weekday())
+            end_date = today
+        elif range_type == 'biweekly':
+            # Last 15 days
+            start_date = today - dt_mod.timedelta(days=14)
+            end_date = today
+        elif range_type == 'monthly':
+            # Start of current month
+            start_date = today.replace(day=1)
+            end_date = today
+        elif range_type == 'custom':
+            if start_date_str:
+                start_date = parse_date(start_date_str)
+            if end_date_str:
+                end_date = parse_date(end_date_str)
+            else:
+                end_date = today
 
-        # Current calendar month
-        current_month = dt_mod.datetime.now().strftime("%Y-%m")
-        
-        # If no sales in current calendar month, fallback to latest month in DB
-        if sales and current_month not in all_months and all_months:
-            current_month = max(all_months)
-        
-        # Calculate inventory valuation
-        total_items = sum(p.stock for p in products)
-        total_cost_value = sum(p.stock * p.cost_price for p in products)
-        total_sale_value = sum(p.stock * p.sale_price for p in products)
+        # Filter sales
+        filtered_sales = []
+        for sale in sales:
+            sale_date = parse_date(sale.date)
+            if start_date and sale_date < start_date:
+                continue
+            if end_date and sale_date > end_date:
+                continue
+            filtered_sales.append(sale)
+            
+        total_revenue = sum(sale.total for sale in filtered_sales)
+        total_sales = len(filtered_sales)
+        low_stock_products = sum(1 for p in products if p.stock < 10)
         
         # Calculate daily sales for chart
         daily_sales = {}
-        monthly_sales_revenue = 0.0
-        product_sales_current_month = {}
         product_sales = {}
         
-        for sale in sales:
+        for sale in filtered_sales:
             parsed_date = parse_date(sale.date)
             date_only = parsed_date.strftime("%Y-%m-%d")
-            month_only = parsed_date.strftime("%Y-%m")
             
             daily_sales.setdefault(date_only, 0.0)
             daily_sales[date_only] += sale.total
-            
-            if month_only == current_month:
-                monthly_sales_revenue += sale.total
             
             for item in sale.items:
                 product_sales.setdefault(item.product_id, 0)
                 product_sales[item.product_id] += item.quantity
                 
-                if month_only == current_month:
-                    product_sales_current_month.setdefault(item.product_id, 0)
-                    product_sales_current_month[item.product_id] += item.quantity
+        # If daily_sales is empty and we have a range, fill it with zeroes for the chart
+        if not daily_sales and start_date and end_date:
+            curr = start_date
+            while curr <= end_date:
+                daily_sales[curr.strftime("%Y-%m-%d")] = 0.0
+                curr += dt_mod.timedelta(days=1)
                 
         # Get product names
         top_products = []
@@ -83,21 +101,24 @@ class DashboardService:
             if product:
                 top_products.append({"name": product.name, "quantity": qty})
                 
-        # Least sold product current month (with at least 1 sale)
+        # Least sold product in range
         least_sold_product = {"name": "Ninguno", "quantity": 0}
-        if product_sales_current_month:
-            least_pid = min(product_sales_current_month, key=product_sales_current_month.get)
-            min_qty = product_sales_current_month[least_pid]
+        if product_sales:
+            least_pid = min(product_sales, key=product_sales.get)
+            min_qty = product_sales[least_pid]
             product = self._product_repository.get_by_id(least_pid)
             if product:
                 least_sold_product = {"name": product.name, "quantity": min_qty}
                 
-        # Sort daily sales by date key (YYYY-MM-DD) chronologically
-        sorted_daily_sales = dict(sorted(daily_sales.items())[-7:])
+        sorted_daily_sales = dict(sorted(daily_sales.items()))
 
-        # Calculate expiring or expired products (within 90 days)
+        # Calculate inventory valuation
+        total_items = sum(p.stock for p in products)
+        total_cost_value = sum(p.stock * p.cost_price for p in products)
+        total_sale_value = sum(p.stock * p.sale_price for p in products)
+
+        # Expiring products (within 90 days)
         expiring_products = []
-        today = dt_mod.date.today()
         ninety_days_from_now = today + dt_mod.timedelta(days=90)
         
         for p in products:
@@ -123,7 +144,6 @@ class DashboardService:
                 except Exception:
                     pass
 
-        # Get recent audit logs
         recent_logs = self._audit_service.get_recent_logs(10) if self._audit_service else []
 
         return {
@@ -133,7 +153,6 @@ class DashboardService:
             "daily_sales": sorted_daily_sales,
             "top_products": top_products,
             "least_sold_product": least_sold_product,
-            "monthly_sales_revenue": monthly_sales_revenue,
             "total_items": total_items,
             "total_cost_value": total_cost_value,
             "total_sale_value": total_sale_value,

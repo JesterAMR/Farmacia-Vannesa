@@ -115,6 +115,36 @@
         updateCartUI();
     }
 
+    function updateCartItemQuantity(index, newQty) {
+        newQty = parseInt(newQty);
+        if (isNaN(newQty) || newQty < 1) {
+            alert('Cantidad inválida');
+            updateCartUI();
+            return;
+        }
+        
+        const item = cart[index];
+        const select = document.getElementById('productSelect');
+        let stock = 0;
+        
+        for (let i = 0; i < select.options.length; i++) {
+            const opt = select.options[i];
+            if (parseInt(opt.value) === item.product_id) {
+                stock = parseInt(opt.getAttribute('data-stock'));
+                break;
+            }
+        }
+        
+        if (newQty > stock) {
+            alert(`Stock insuficiente! Solo quedan ${stock} unidades de este producto.`);
+            updateCartUI();
+            return;
+        }
+        
+        item.quantity = newQty;
+        updateCartUI();
+    }
+
     function updateCartUI() {
         const tbody = document.getElementById('cartBody');
         tbody.innerHTML = '';
@@ -127,7 +157,9 @@
             tbody.innerHTML += `
                 <tr>
                     <td>${item.name}</td>
-                    <td>${item.quantity}</td>
+                    <td>
+                        <input type="number" class="form-control" style="width: 80px; display: inline-block; padding: 0.25rem;" value="${item.quantity}" min="1" onchange="updateCartItemQuantity(${index}, this.value)">
+                    </td>
                     <td>$${subtotal.toFixed(2)}</td>
                     <td><button type="button" class="btn btn-danger" style="padding: 0.25rem 0.5rem;" onclick="removeCartItem(${index})"><i class="fas fa-trash"></i></button></td>
                 </tr>

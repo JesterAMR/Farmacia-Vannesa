@@ -38,7 +38,8 @@ class SQLiteDatabase:
                     expiration_date TEXT NOT NULL,
                     dose TEXT NOT NULL,
                     cost_price REAL NOT NULL,
-                    sale_price REAL NOT NULL
+                    sale_price REAL NOT NULL,
+                    is_active INTEGER DEFAULT 1
                 )
             ''')
             
@@ -97,6 +98,12 @@ class SQLiteDatabase:
 
             try:
                 cursor.execute("ALTER TABLE sales ADD COLUMN client_id INTEGER DEFAULT NULL REFERENCES clients(id)")
+            except sqlite3.OperationalError:
+                # Column already exists
+                pass
+
+            try:
+                cursor.execute("ALTER TABLE products ADD COLUMN is_active INTEGER DEFAULT 1")
             except sqlite3.OperationalError:
                 # Column already exists
                 pass

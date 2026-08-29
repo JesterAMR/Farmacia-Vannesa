@@ -27,6 +27,30 @@
     </div>
 </div>
 
+<div class="glass-panel" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin-bottom: 2rem; padding: 1.5rem;">
+    <div class="form-group" style="flex: 2; margin-bottom: 0; min-width: 250px;">
+        <label for="searchInput" style="margin-bottom: 0.25rem;">Buscar Medicamento</label>
+        <input type="text" id="searchInput" class="form-control" placeholder="Buscar por nombre, genérico o código..." onkeyup="filterInventory()">
+    </div>
+    <div class="form-group" style="flex: 1; margin-bottom: 0; min-width: 180px;">
+        <label for="labSelect" style="margin-bottom: 0.25rem;">Filtrar por Laboratorio</label>
+        <select id="labSelect" class="form-control" onchange="filterInventory()">
+            <option value="">Todos los laboratorios</option>
+        </select>
+    </div>
+    <div style="display: flex; align-items: center; margin-top: 1.25rem;">
+        {% if show_inactive %}
+        <a href="{{ url_for('inventory.list_products', show_inactive='false') }}" class="btn btn-danger" style="display: flex; align-items: center; gap: 0.5rem; text-decoration: none;">
+            <i class="fas fa-eye-slash"></i> Ocultar Inactivos
+        </a>
+        {% else %}
+        <a href="{{ url_for('inventory.list_products', show_inactive='true') }}" class="btn" style="background: var(--warning); color: #0f172a; display: flex; align-items: center; gap: 0.5rem; text-decoration: none;">
+            <i class="fas fa-eye"></i> Mostrar Inactivos
+        </a>
+        {% endif %}
+    </div>
+</div>
+
 <div class="glass-panel" style="overflow-x: auto;">
     <table style="min-width: 1000px;">
         <thead>
@@ -45,9 +69,14 @@
         </thead>
         <tbody>
             {% for product in products %}
-            <tr>
+            <tr class="product-row" data-name="{{ product.name|lower }}" data-generic="{{ product.generic_name|lower }}" data-code="{{ product.product_code|lower }}" data-lab="{{ product.laboratory }}">
                 <td>{{ product.product_code }}</td>
-                <td><strong>{{ product.name }}</strong></td>
+                <td>
+                    <strong>{{ product.name }}</strong>
+                    {% if not product.is_active %}
+                    <span style="padding: 0.1rem 0.3rem; font-size: 0.75rem; border-radius: 0.25rem; font-weight: bold; background: rgba(239, 68, 68, 0.2); color: var(--danger); margin-left: 5px;">INACTIVO</span>
+                    {% endif %}
+                </td>
                 <td>{{ product.generic_name }}<br><small style="color: #94a3b8;">{{ product.dose }}</small></td>
                 <td>{{ product.presentation }}</td>
                 <td>{{ product.laboratory }}</td>
@@ -60,17 +89,25 @@
                 <td>${{ "%.2f"|format(product.cost_price) }}</td>
                 <td style="color: var(--success); font-weight: bold;">${{ "%.2f"|format(product.sale_price) }}</td>
                 <td>
-                    <button class="btn" style="padding: 0.25rem 0.5rem; background: var(--warning); margin-right: 0.25rem;" onclick="openRestockModal({{ product.id }}, '{{ product.name|replace("'", "\\'") }}')">
+                    {% if product.is_active %}
+                    <button class="btn" style="padding: 0.25rem 0.5rem; background: var(--warning); margin-right: 0.25rem;" onclick="openRestockModal({{ product.id }}, '{{ product.name|replace("'", "\\'") }}')" title="Reabastecer">
                         <i class="fas fa-box-open"></i>
                     </button>
-                    <button class="btn" style="padding: 0.25rem 0.5rem;" onclick="openEditModal({{ product.id }}, '{{ product.name|replace("'", "\\'") }}', '{{ product.generic_name|replace("'", "\\'") }}', '{{ product.product_code }}', {{ product.stock }}, '{{ product.presentation }}', '{{ product.laboratory|replace("'", "\\'") }}', '{{ product.expiration_date }}', '{{ product.dose }}', {{ product.cost_price }}, {{ product.sale_price }}, '{{ product.description|replace("'", "\\'") }}')">
+                    <button class="btn" style="padding: 0.25rem 0.5rem; margin-right: 0.25rem;" onclick="openEditModal({{ product.id }}, '{{ product.name|replace("'", "\\'") }}', '{{ product.generic_name|replace("'", "\\'") }}', '{{ product.product_code }}', {{ product.stock }}, '{{ product.presentation }}', '{{ product.laboratory|replace("'", "\\'") }}', '{{ product.expiration_date }}', '{{ product.dose }}', {{ product.cost_price }}, {{ product.sale_price }}, '{{ product.description|replace("'", "\\'") }}')" title="Editar">
                         <i class="fas fa-edit"></i>
                     </button>
                     <form action="{{ url_for('inventory.delete_product', id=product.id) }}" method="POST" style="display: inline;">
-                        <button type="submit" class="btn btn-danger" style="padding: 0.25rem 0.5rem;" onclick="return confirm('¿Seguro que deseas eliminar este registro médico?')">
+                        <button type="submit" class="btn btn-danger" style="padding: 0.25rem 0.5rem;" onclick="return confirm('¿Seguro que deseas desactivar este medicamento?')">
                             <i class="fas fa-trash"></i>
                         </button>
                     </form>
+                    {% else %}
+                    <form action="{{ url_for('inventory.reactivate_product', id=product.id) }}" method="POST" style="display: inline;">
+                        <button type="submit" class="btn btn-success" style="padding: 0.25rem 0.5rem;" onclick="return confirm('¿Seguro que deseas reactivar este medicamento?')">
+                            <i class="fas fa-check-circle"></i> Reactivar
+                        </button>
+                    </form>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}
@@ -247,6 +284,46 @@
         document.getElementById('restockForm').action = "/inventory/restock/" + id;
         document.getElementById('restockProductName').textContent = name;
         openModal('restockModal');
+    }
+
+    // Populate laboratories filter dropdown
+    document.addEventListener("DOMContentLoaded", function() {
+        const rows = document.querySelectorAll(".product-row");
+        const labs = new Set();
+        rows.forEach(row => {
+            const lab = row.getAttribute("data-lab");
+            if (lab) labs.add(lab);
+        });
+        
+        const labSelect = document.getElementById("labSelect");
+        labs.forEach(lab => {
+            const opt = document.createElement("option");
+            opt.value = lab;
+            opt.textContent = lab;
+            labSelect.appendChild(opt);
+        });
+    });
+
+    function filterInventory() {
+        const searchVal = document.getElementById("searchInput").value.toLowerCase();
+        const labVal = document.getElementById("labSelect").value;
+        const rows = document.querySelectorAll(".product-row");
+        
+        rows.forEach(row => {
+            const name = row.getAttribute("data-name");
+            const generic = row.getAttribute("data-generic");
+            const code = row.getAttribute("data-code");
+            const lab = row.getAttribute("data-lab");
+            
+            const matchesSearch = name.includes(searchVal) || generic.includes(searchVal) || code.includes(searchVal);
+            const matchesLab = !labVal || lab === labVal;
+            
+            if (matchesSearch && matchesLab) {
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
+            }
+        });
     }
 </script>
 {% endblock %}

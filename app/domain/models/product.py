@@ -20,6 +20,7 @@ class Product:
     cost_price: float
     sale_price: float
     
+    is_active: bool = True
     id: Optional[int] = None
 
     # Property to interface gracefully with existing code looking for 'price'
