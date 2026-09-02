@@ -9,12 +9,23 @@ class SupabaseProductRepository(ProductRepositoryInterface):
         self.db = get_supabase_client()
 
     def get_all(self, include_inactive: bool = False) -> List[Product]:
-        query = self.db.table('products').select('*')
-        if not include_inactive:
-            query = query.eq('is_active', True)
-        response = query.execute()
+        try:
+            query = self.db.table('products').select('*')
+            if not include_inactive:
+                query = query.eq('is_active', True)
+            response = query.execute()
+        except Exception:
+            # Fallback if is_active column does not exist yet in Supabase
+            response = self.db.table('products').select('*').execute()
+
         products = []
         for row in response.data:
+            raw_active = row.get('is_active')
+            is_active = True if raw_active is None else bool(raw_active)
+
+            if not include_inactive and not is_active:
+                continue
+
             products.append(Product(
                 id=row.get('id'),
                 name=row.get('name'),
@@ -28,7 +39,7 @@ class SupabaseProductRepository(ProductRepositoryInterface):
                 dose=row.get('dose'),
                 cost_price=row.get('cost_price'),
                 sale_price=row.get('sale_price'),
-                is_active=row.get('is_active', True)
+                is_active=is_active
             ))
         return products
 
@@ -37,6 +48,9 @@ class SupabaseProductRepository(ProductRepositoryInterface):
         if not response.data:
             return None
         row = response.data[0]
+        raw_active = row.get('is_active')
+        is_active = True if raw_active is None else bool(raw_active)
+
         return Product(
             id=row.get('id'),
             name=row.get('name'),
@@ -50,7 +64,7 @@ class SupabaseProductRepository(ProductRepositoryInterface):
             dose=row.get('dose'),
             cost_price=row.get('cost_price'),
             sale_price=row.get('sale_price'),
-            is_active=row.get('is_active', True)
+            is_active=is_active
         )
 
     def add(self, product: Product) -> Product:
@@ -71,7 +85,12 @@ class SupabaseProductRepository(ProductRepositoryInterface):
         if product.id is not None:
             data["id"] = product.id
             
-        response = self.db.table('products').insert(data).execute()
+        try:
+            response = self.db.table('products').insert(data).execute()
+        except Exception:
+            data.pop("is_active", None)
+            response = self.db.table('products').insert(data).execute()
+
         if response.data:
             product.id = response.data[0].get('id')
         return product
@@ -91,9 +110,22 @@ class SupabaseProductRepository(ProductRepositoryInterface):
             "sale_price": product.sale_price,
             "is_active": product.is_active
         }
-        self.db.table('products').update(data).eq('id', product.id).execute()
+        try:
+            self.db.table('products').update(data).eq('id', product.id).execute()
+        except Exception:
+            data.pop("is_active", None)
+            self.db.table('products').update(data).eq('id', product.id).execute()
+
         return product
 
     def delete(self, id: int) -> bool:
-        response = self.db.table('products').update({"is_active": False}).eq('id', id).execute()
+        try:
+            response = self.db.table('products').update({"is_active": False}).eq('id', id).execute()
+            if response.data:
+                return len(response.data) > 0
+        except Exception:
+            pass
+        
+        # Fallback to hard delete if is_active column doesn't exist
+        response = self.db.table('products').delete().eq('id', id).execute()
         return len(response.data) > 0

@@ -153,6 +153,7 @@ class DashboardService:
             "daily_sales": sorted_daily_sales,
             "top_products": top_products,
             "least_sold_product": least_sold_product,
+            "monthly_sales_revenue": total_revenue,
             "total_items": total_items,
             "total_cost_value": total_cost_value,
             "total_sale_value": total_sale_value,
