@@ -33,7 +33,7 @@
 <div class="dashboard-cards">
     <div class="card">
         <h3>Ingresos Totales (Rango)</h3>
-        <div class="value" id="cardTotalRevenue">${{ "%.2f"|format(summary.total_revenue) }}</div>
+        <div class="value" id="cardTotalRevenue">C${{ "%.2f"|format(summary.total_revenue) }}</div>
     </div>
     <div class="card">
         <h3>Ventas Realizadas (Rango)</h3>
@@ -136,7 +136,7 @@
                 data: {
                     labels: Object.keys(salesData),
                     datasets: [{
-                        label: 'Ingresos ($)',
+                        label: 'Ingresos (C$)',
                         data: Object.values(salesData),
                         borderColor: '#3b82f6',
                         backgroundColor: 'rgba(59, 130, 246, 0.2)',
