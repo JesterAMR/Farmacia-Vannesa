@@ -15,8 +15,6 @@ from app.infrastructure.repositories.supabase_product_repository import Supabase
 from app.infrastructure.repositories.supabase_sale_repository import SupabaseSaleRepository
 from app.infrastructure.repositories.supabase_client_repository import SupabaseClientRepository
 from app.infrastructure.repositories.supabase_audit_repository import SupabaseAuditRepository
-from app.infrastructure.repositories.supabase_cash_repository import SupabaseCashRepository
-from app.infrastructure.repositories.supabase_inventory_movement_repository import SupabaseInventoryMovementRepository
 
 from app.application.services.auth_service import AuthService
 from app.application.services.inventory_service import InventoryService
@@ -29,9 +27,6 @@ from app.presentation.routes.dashboard_routes import create_dashboard_blueprint
 from app.presentation.routes.inventory_routes import create_inventory_blueprint
 from app.presentation.routes.sales_routes import create_sales_blueprint
 from app.presentation.routes.client_routes import create_client_blueprint
-from app.presentation.routes.cash_routes import create_cash_blueprint
-from app.presentation.routes.inventory_movement_routes import create_inventory_movement_blueprint
-from app.presentation.routes.stats_routes import create_stats_blueprint
 
 
 def create_app():
@@ -53,40 +48,36 @@ def create_app():
     # database = SQLiteDatabase(db_path=db_path)
     
     # 4. INSTANCIAMOS los Repositorios de Supabase
+    # Nota: Según los archivos que creamos, estos no necesitan recibir 'database' 
+    # en el __init__ porque ya llaman a get_supabase_client() por dentro.
     user_repo = SupabaseUserRepository()
     product_repo = SupabaseProductRepository()
     sale_repo = SupabaseSaleRepository()
     client_repo = SupabaseClientRepository()
-    audit_repo = SupabaseAuditRepository()
-    cash_repo = SupabaseCashRepository()
-    inv_mov_repo = SupabaseInventoryMovementRepository()
+    audit_repo = SupabaseAuditRepository() # Nuevo repo para auditoría
     
-    # 5. Servicios Lógica de Negocio
+    # 5. Servicios Lógica de Negocio (¡Intactos!)
+    # Excepto AuditService, que asumo que antes recibía 'db=database'. 
+    # Ahora probablemente deberías pasarle el audit_repo.
     auth_service = AuthService(user_repository=user_repo)
     inventory_service = InventoryService(product_repository=product_repo)
     client_service = ClientService(client_repository=client_repo)
-    audit_service = AuditService(audit_repository=audit_repo)
+    audit_service = AuditService(audit_repository=audit_repo) # <-- AJUSTE AQUÍ
     sales_service = SalesService(sale_repository=sale_repo, product_repository=product_repo)
     dashboard_service = DashboardService(sale_repository=sale_repo, product_repository=product_repo, audit_service=audit_service)
 
-    # 6. Blueprints conectados funcionalmente a Supabase
+    # Blueprints (¡Intactos!)
     auth_bp = create_auth_blueprint(auth_service)
     dashboard_bp = create_dashboard_blueprint(dashboard_service)
-    inventory_bp = create_inventory_blueprint(inventory_service, audit_service, inv_mov_repo=inv_mov_repo)
-    sales_bp = create_sales_blueprint(sales_service, inventory_service, client_service, audit_service, product_repo, inv_mov_repo=inv_mov_repo, cash_repo=cash_repo)
+    inventory_bp = create_inventory_blueprint(inventory_service, audit_service)
+    sales_bp = create_sales_blueprint(sales_service, inventory_service, client_service, audit_service, product_repo)
     client_bp = create_client_blueprint(client_service, audit_service)
-    cash_bp = create_cash_blueprint(cash_repo=cash_repo, sales_service=sales_service, audit_service=audit_service)
-    inv_mov_bp = create_inventory_movement_blueprint(inv_mov_repo=inv_mov_repo, inventory_service=inventory_service, audit_service=audit_service)
-    stats_bp = create_stats_blueprint(product_repo=product_repo, sale_repo=sale_repo)
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(inventory_bp)
     app.register_blueprint(sales_bp)
     app.register_blueprint(client_bp)
-    app.register_blueprint(cash_bp)
-    app.register_blueprint(inv_mov_bp)
-    app.register_blueprint(stats_bp)
 
     return app
 

@@ -4,9 +4,7 @@ from app.domain.models.product import Product
 from app.presentation.routes.auth import login_required, admin_required
 from app.application.services.audit_service import AuditService
 
-def create_inventory_blueprint(inventory_service: InventoryService, 
-                               audit_service: AuditService,
-                               inv_mov_repo = None) -> Blueprint:
+def create_inventory_blueprint(inventory_service: InventoryService, audit_service: AuditService) -> Blueprint:
     bp = Blueprint('inventory', __name__, url_prefix='/inventory')
 
     @bp.route('/')
@@ -38,21 +36,6 @@ def create_inventory_blueprint(inventory_service: InventoryService,
             stock, presentation, laboratory, expiration_date, dose,
             cost_price, sale_price
         )
-
-        if inv_mov_repo and product and product.id:
-            try:
-                inv_mov_repo.add_movement({
-                    "product_id": product.id,
-                    "user_id": session.get('user_id'),
-                    "movement_type": "Entrada",
-                    "quantity": stock,
-                    "previous_stock": 0,
-                    "new_stock": stock,
-                    "reason": "Alta y registro inicial de medicamento"
-                })
-            except Exception as e:
-                print(f"Error logging initial inventory movement: {e}")
-
         audit_service.log_action(
             action=f"Creó medicamento: {product.name}",
             user_id=session.get('user_id'),
@@ -135,20 +118,6 @@ def create_inventory_blueprint(inventory_service: InventoryService,
         if added_quantity > 0:
             product = inventory_service.restock_product(id, added_quantity)
             if product:
-                if inv_mov_repo:
-                    try:
-                        inv_mov_repo.add_movement({
-                            "product_id": product.id,
-                            "user_id": session.get('user_id'),
-                            "movement_type": "Entrada",
-                            "quantity": added_quantity,
-                            "previous_stock": product.stock - added_quantity,
-                            "new_stock": product.stock,
-                            "reason": "Reabastecimiento de stock en bodega"
-                        })
-                    except Exception as e:
-                        print(f"Error logging restock movement: {e}")
-
                 audit_service.log_action(
                     action=f"Reabasteció stock: {product.name}",
                     user_id=session.get('user_id'),

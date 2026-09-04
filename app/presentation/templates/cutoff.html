@@ -14,12 +14,12 @@
 <div class="dashboard-cards" style="margin-top: 2rem;">
     <div class="card" style="border-left: 4px solid var(--primary);">
         <h3>Ingresos del Mes</h3>
-        <div class="value">C${{ "%.2f"|format(summary.monthly_sales_revenue) }}</div>
+        <div class="value">${{ "%.2f"|format(summary.monthly_sales_revenue) }}</div>
         <p style="color: #94a3b8; font-size: 0.9rem; margin-top: 0.5rem;">Total vendido durante el mes en curso.</p>
     </div>
     <div class="card" style="border-left: 4px solid var(--success);">
         <h3>Ventas Totales (Histórico)</h3>
-        <div class="value">C${{ "%.2f"|format(summary.total_revenue) }}</div>
+        <div class="value">${{ "%.2f"|format(summary.total_revenue) }}</div>
         <p style="color: #94a3b8; font-size: 0.9rem; margin-top: 0.5rem;">Ingresos totales recaudados históricamente.</p>
     </div>
     <div class="card" style="border-left: 4px solid var(--warning);">
@@ -33,7 +33,7 @@
     <div class="glass-panel" style="flex: 1;">
         <h2><i class="fas fa-box"></i> Valoración de Inventario (Costo)</h2>
         <div style="font-size: 2.5rem; font-weight: bold; color: #f8fafc; margin: 1rem 0;">
-            C${{ "%.2f"|format(summary.total_cost_value) }}
+            ${{ "%.2f"|format(summary.total_cost_value) }}
         </div>
         <p style="color: #94a3b8;">El valor total del inventario actual calculado en base al precio de compra a proveedores. (Capital invertido y retenido).</p>
     </div>
@@ -41,7 +41,7 @@
     <div class="glass-panel" style="flex: 1;">
         <h2><i class="fas fa-hand-holding-usd"></i> Valoración de Inventario (Venta)</h2>
         <div style="font-size: 2.5rem; font-weight: bold; color: var(--success); margin: 1rem 0;">
-            C${{ "%.2f"|format(summary.total_sale_value) }}
+            ${{ "%.2f"|format(summary.total_sale_value) }}
         </div>
         <p style="color: #94a3b8;">El valor total esperado si se vendiera el 100% del inventario actual a precio de público. (Ingreso potencial bruto).</p>
     </div>

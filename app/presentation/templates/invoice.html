@@ -33,15 +33,15 @@
             <tr>
                 <td>{{ item.product_name }}</td>
                 <td>{{ item.quantity }}</td>
-                <td>C${{ "%.2f"|format(item.price) }}</td>
-                <td style="text-align: right;">C${{ "%.2f"|format(item.subtotal) }}</td>
+                <td>${{ "%.2f"|format(item.price) }}</td>
+                <td style="text-align: right;">${{ "%.2f"|format(item.subtotal) }}</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 
     <div style="text-align: right; border-top: 2px dashed rgba(255,255,255,0.2); padding-top: 1rem;">
-        <h2>Total: C${{ "%.2f"|format(sale.total) }}</h2>
+        <h2>Total: ${{ "%.2f"|format(sale.total) }}</h2>
     </div>
 
     <div style="text-align: center; margin-top: 3rem; display: flex; gap: 1rem; justify-content: center;">
