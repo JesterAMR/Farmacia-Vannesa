@@ -107,5 +107,32 @@ class SQLiteDatabase:
             except sqlite3.OperationalError:
                 # Column already exists
                 pass
+
+            # Enforce unique product code constraint at database level
+            try:
+                cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_products_code ON products(product_code)")
+            except sqlite3.OperationalError:
+                pass
+
+            # Enforce positive sale quantity check at database level
+            try:
+                cursor.execute("""
+                    CREATE TRIGGER IF NOT EXISTS check_sale_items_qty_positive 
+                    BEFORE INSERT ON sale_items 
+                    FOR EACH ROW 
+                    BEGIN 
+                        SELECT CASE WHEN NEW.quantity <= 0 THEN RAISE(ABORT, 'La cantidad vendida debe ser mayor a 0.') END; 
+                    END;
+                """)
+                cursor.execute("""
+                    CREATE TRIGGER IF NOT EXISTS check_sale_items_qty_positive_update 
+                    BEFORE UPDATE ON sale_items 
+                    FOR EACH ROW 
+                    BEGIN 
+                        SELECT CASE WHEN NEW.quantity <= 0 THEN RAISE(ABORT, 'La cantidad vendida debe ser mayor a 0.') END; 
+                    END;
+                """)
+            except sqlite3.OperationalError:
+                pass
             
             conn.commit()

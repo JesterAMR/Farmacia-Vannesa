@@ -31,17 +31,23 @@ def create_inventory_blueprint(inventory_service: InventoryService, audit_servic
         cost_price = float(request.form.get('cost_price'))
         sale_price = float(request.form.get('sale_price'))
         
-        product = inventory_service.create_product(
-            name, generic_name, product_code, description,
-            stock, presentation, laboratory, expiration_date, dose,
-            cost_price, sale_price
-        )
-        audit_service.log_action(
-            action=f"Creó medicamento: {product.name}",
-            user_id=session.get('user_id'),
-            details=f"Código: {product.product_code}, Stock inicial: {product.stock}"
-        )
-        flash('Medicamento agregado correctamente', 'success')
+        try:
+            product = inventory_service.create_product(
+                name, generic_name, product_code, description,
+                stock, presentation, laboratory, expiration_date, dose,
+                cost_price, sale_price
+            )
+            audit_service.log_action(
+                action=f"Creó medicamento: {product.name}",
+                user_id=session.get('user_id'),
+                details=f"Código: {product.product_code}, Stock inicial: {product.stock}"
+            )
+            flash('Medicamento agregado correctamente', 'success')
+        except ValueError as e:
+            flash(str(e), 'error')
+        except Exception as e:
+            flash(f"Error al agregar medicamento: {e}", 'error')
+            
         return redirect(url_for('inventory.list_products'))
 
     @bp.route('/update/<int:id>', methods=['POST'])
@@ -62,13 +68,18 @@ def create_inventory_blueprint(inventory_service: InventoryService, audit_servic
             product.cost_price = float(request.form.get('cost_price'))
             product.sale_price = float(request.form.get('sale_price'))
             
-            inventory_service.update_product(product)
-            audit_service.log_action(
-                action=f"Actualizó medicamento: {product.name}",
-                user_id=session.get('user_id'),
-                details=f"ID: {product.id}, Código: {product.product_code}, Nuevo Stock: {product.stock}"
-            )
-            flash('Medicamento actualizado correctamente', 'success')
+            try:
+                inventory_service.update_product(product)
+                audit_service.log_action(
+                    action=f"Actualizó medicamento: {product.name}",
+                    user_id=session.get('user_id'),
+                    details=f"ID: {product.id}, Código: {product.product_code}, Nuevo Stock: {product.stock}"
+                )
+                flash('Medicamento actualizado correctamente', 'success')
+            except ValueError as e:
+                flash(str(e), 'error')
+            except Exception as e:
+                flash(f"Error al actualizar medicamento: {e}", 'error')
         else:
             flash('Medicamento no encontrado', 'error')
         return redirect(url_for('inventory.list_products'))

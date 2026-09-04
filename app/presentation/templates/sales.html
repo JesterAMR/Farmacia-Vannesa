@@ -81,6 +81,11 @@
         
         if (!select.value) return;
         
+        if (isNaN(qty) || qty <= 0) {
+            alert('La cantidad a vender debe ser mayor a 0');
+            return;
+        }
+
         const option = select.options[select.selectedIndex];
         const stock = parseInt(option.getAttribute('data-stock'));
         
@@ -117,8 +122,8 @@
 
     function updateCartItemQuantity(index, newQty) {
         newQty = parseInt(newQty);
-        if (isNaN(newQty) || newQty < 1) {
-            alert('Cantidad inválida');
+        if (isNaN(newQty) || newQty <= 0) {
+            alert('La cantidad vendida debe ser mayor a 0');
             updateCartUI();
             return;
         }

@@ -20,6 +20,9 @@ class SalesService:
                 raise ValueError(f"Producto {item_data['product_id']} no encontrado.")
             
             qty = item_data['quantity']
+            if qty <= 0:
+                raise ValueError(f"La cantidad vendida para {product.name} debe ser mayor a cero.")
+                
             if product.stock < qty:
                 raise ValueError(f"Stock insuficiente para {product.name}.")
                 

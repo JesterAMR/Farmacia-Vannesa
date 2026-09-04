@@ -65,6 +65,19 @@ CREATE INDEX IF NOT EXISTS idx_cash_movements_shift ON public.cash_movements(shi
 CREATE INDEX IF NOT EXISTS idx_inventory_movements_product ON public.inventory_movements(product_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_movements_created ON public.inventory_movements(created_at DESC);
 
+-- 6. RESTRICCIONES DE VALIDACIÓN (CONSTRAINTS) EN BD
+-- A) Código de producto único e irrepetible
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'unique_product_code') THEN
+        ALTER TABLE public.products ADD CONSTRAINT unique_product_code UNIQUE (product_code);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'check_quantity_positive') THEN
+        ALTER TABLE public.sale_items ADD CONSTRAINT check_quantity_positive CHECK (quantity > 0);
+    END IF;
+END $$;
+
 -- ================================================================
 -- FIN DEL SCRIPT. Ejecuta con el botón verde 'RUN' en Supabase.
 -- ================================================================
+

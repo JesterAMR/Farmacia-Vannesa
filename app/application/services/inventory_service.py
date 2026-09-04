@@ -10,6 +10,12 @@ class InventoryService:
                        stock: int, presentation: str, laboratory: str, expiration_date: str, dose: str,
                        cost_price: float, sale_price: float) -> Product:
         
+        # Validate unique product code
+        existing_products = self._product_repository.get_all(include_inactive=True)
+        for p in existing_products:
+            if p.product_code and p.product_code.strip().lower() == product_code.strip().lower():
+                raise ValueError(f"El código de producto '{product_code}' ya existe en el sistema.")
+
         product = Product(
             name=name, generic_name=generic_name, product_code=product_code, description=description,
             stock=stock, presentation=presentation, laboratory=laboratory, 
@@ -25,6 +31,12 @@ class InventoryService:
         return self._product_repository.get_all(include_inactive=include_inactive)
 
     def update_product(self, product: Product) -> Product:
+        # Validate unique product code for other products
+        existing_products = self._product_repository.get_all(include_inactive=True)
+        for p in existing_products:
+            if p.id != product.id and p.product_code and p.product_code.strip().lower() == product.product_code.strip().lower():
+                raise ValueError(f"El código de producto '{product.product_code}' ya pertenece a otro medicamento.")
+
         return self._product_repository.update(product)
 
     def delete_product(self, id: int) -> bool:
