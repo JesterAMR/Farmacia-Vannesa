@@ -1,5 +1,5 @@
 import sqlite3
-from typing import Optional
+from typing import List, Optional
 from app.domain.models.user import User
 from app.application.interfaces.user_repository import UserRepositoryInterface
 from app.infrastructure.database.sqlite_connection import SQLiteDatabase
@@ -53,6 +53,20 @@ class SQLiteUserRepository(UserRepositoryInterface):
             cursor.execute("SELECT COUNT(*) FROM users")
             return cursor.fetchone()[0]
 
+    def get_all(self) -> List[User]:
+        with self.db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM users")
+            rows = cursor.fetchall()
+            return [
+                User(
+                    id=row['id'],
+                    username=row['username'],
+                    password_hash=row['password_hash'],
+                    role=row['role']
+                ) for row in rows
+            ]
+
     def update(self, user: User) -> User:
         with self.db.get_connection() as conn:
             cursor = conn.cursor()
@@ -62,3 +76,10 @@ class SQLiteUserRepository(UserRepositoryInterface):
             )
             conn.commit()
             return user
+
+    def delete(self, id: int) -> bool:
+        with self.db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM users WHERE id = ?", (id,))
+            conn.commit()
+            return cursor.rowcount > 0
