@@ -11,68 +11,129 @@
 </head>
 <body>
     <div class="sidebar">
-        <h2>Vannesa ⚕️</h2>
+        <div class="sidebar-brand">
+            <div class="brand-logo-badge">
+                <i class="fas fa-prescription-bottle-alt"></i>
+            </div>
+            <div class="brand-text">
+                <h2>Vannesa</h2>
+                <span class="brand-subtitle">Farmacia & Gestión</span>
+            </div>
+        </div>
+
         {% if session.get('user_id') %}
             <nav class="nav-menu">
+                <div class="menu-section-label">Módulos Principales</div>
+
                 <!-- SUPERMENÚ INFORMES -->
                 <div class="menu-group">
-                    <button type="button" class="menu-toggle open" id="btn-menu-informes" onclick="toggleSubmenu('menu-informes')">
-                        <span class="menu-title"><i class="fas fa-chart-pie"></i> Informes</span>
-                        <i class="fas fa-chevron-down chevron"></i>
+                    <button type="button" class="menu-toggle" id="btn-menu-informes" onclick="toggleSubmenu('menu-informes')" aria-expanded="false" aria-controls="menu-informes">
+                        <div class="toggle-left">
+                            <span class="toggle-icon-wrap informes-color">
+                                <i class="fas fa-chart-pie"></i>
+                            </span>
+                            <span class="menu-title">Informes</span>
+                        </div>
+                        <div class="toggle-right">
+                            <span class="menu-badge">7</span>
+                            <i class="fas fa-chevron-down chevron"></i>
+                        </div>
                     </button>
-                    <div class="submenu" id="menu-informes">
-                        <a href="{{ url_for('dashboard.index') }}" class="submenu-item {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
-                            <i class="fas fa-home"></i> Dashboard
-                        </a>
-                        <a href="{{ url_for('cash.movements') }}" class="submenu-item {% if request.endpoint == 'cash.movements' %}active{% endif %}">
-                            <i class="fas fa-money-bill-transfer"></i> Movimientos de Caja
-                        </a>
-                        <a href="{{ url_for('inventory.list_products') }}" class="submenu-item {% if request.endpoint == 'inventory.list_products' %}active{% endif %}">
-                            <i class="fas fa-boxes"></i> Inventario
-                        </a>
-                        <a href="{{ url_for('dashboard.audit_logs') }}" class="submenu-item {% if request.endpoint == 'dashboard.audit_logs' %}active{% endif %}">
-                            <i class="fas fa-shield-alt"></i> Bitácora de Auditoría
-                        </a>
-                        <a href="{{ url_for('stats.top_bottom_products') }}" class="submenu-item {% if request.endpoint == 'stats.top_bottom_products' %}active{% endif %}">
-                            <i class="fas fa-chart-line"></i> Venta de Productos
-                        </a>
-                        <a href="{{ url_for('client.index') }}" class="submenu-item {% if request.endpoint == 'client.index' %}active{% endif %}">
-                            <i class="fas fa-users"></i> Clientes
-                        </a>
+                    <div class="submenu" id="menu-informes" role="region" aria-labelledby="btn-menu-informes">
+                        <div class="submenu-inner">
+                            <a href="{{ url_for('dashboard.index') }}" class="submenu-item {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
+                                <i class="fas fa-home"></i>
+                                <span>Dashboard</span>
+                            </a>
+                            <a href="{{ url_for('cash.movements') }}" class="submenu-item {% if request.endpoint == 'cash.movements' %}active{% endif %}">
+                                <i class="fas fa-money-bill-transfer"></i>
+                                <span>Movimientos Caja</span>
+                            </a>
+                            <a href="{{ url_for('inventory.list_products') }}" class="submenu-item {% if request.endpoint == 'inventory.list_products' %}active{% endif %}">
+                                <i class="fas fa-boxes"></i>
+                                <span>Inventario</span>
+                            </a>
+                            <a href="{{ url_for('inventory_movements.index') }}" class="submenu-item {% if request.endpoint == 'inventory_movements.index' %}active{% endif %}">
+                                <i class="fas fa-dolly"></i>
+                                <span>Kardex / Movs.</span>
+                            </a>
+                            <a href="{{ url_for('dashboard.audit_logs') }}" class="submenu-item {% if request.endpoint == 'dashboard.audit_logs' %}active{% endif %}">
+                                <i class="fas fa-shield-alt"></i>
+                                <span>Bitácora Auditoría</span>
+                            </a>
+                            <a href="{{ url_for('stats.top_bottom_products') }}" class="submenu-item {% if request.endpoint == 'stats.top_bottom_products' %}active{% endif %}">
+                                <i class="fas fa-chart-line"></i>
+                                <span>Venta Productos</span>
+                            </a>
+                            <a href="{{ url_for('client.index') }}" class="submenu-item {% if request.endpoint == 'client.index' %}active{% endif %}">
+                                <i class="fas fa-users"></i>
+                                <span>Clientes</span>
+                            </a>
+                        </div>
                     </div>
                 </div>
 
                 <!-- SUPERMENÚ CAJA -->
                 <div class="menu-group">
-                    <button type="button" class="menu-toggle open" id="btn-menu-caja" onclick="toggleSubmenu('menu-caja')">
-                        <span class="menu-title"><i class="fas fa-cash-register"></i> Caja</span>
-                        <i class="fas fa-chevron-down chevron"></i>
+                    <button type="button" class="menu-toggle" id="btn-menu-caja" onclick="toggleSubmenu('menu-caja')" aria-expanded="false" aria-controls="menu-caja">
+                        <div class="toggle-left">
+                            <span class="toggle-icon-wrap caja-color">
+                                <i class="fas fa-cash-register"></i>
+                            </span>
+                            <span class="menu-title">Caja</span>
+                        </div>
+                        <div class="toggle-right">
+                            <span class="menu-badge">4</span>
+                            <i class="fas fa-chevron-down chevron"></i>
+                        </div>
                     </button>
-                    <div class="submenu" id="menu-caja">
-                        <a href="{{ url_for('cash.open_cash') }}" class="submenu-item {% if request.endpoint == 'cash.open_cash' %}active{% endif %}">
-                            <i class="fas fa-door-open"></i> Apertura
-                        </a>
-                        <a href="{{ url_for('cash.close_cash') }}" class="submenu-item {% if request.endpoint == 'cash.close_cash' %}active{% endif %}">
-                            <i class="fas fa-lock"></i> Cierre
-                        </a>
-                        <a href="{{ url_for('cash.arqueo') }}" class="submenu-item {% if request.endpoint == 'cash.arqueo' %}active{% endif %}">
-                            <i class="fas fa-calculator"></i> Arqueo
-                        </a>
-                        <a href="{{ url_for('sales.index') }}" class="submenu-item {% if request.endpoint == 'sales.index' %}active{% endif %}">
-                            <i class="fas fa-file-invoice-dollar"></i> Facturación
-                        </a>
+                    <div class="submenu" id="menu-caja" role="region" aria-labelledby="btn-menu-caja">
+                        <div class="submenu-inner">
+                            <a href="{{ url_for('cash.open_cash') }}" class="submenu-item {% if request.endpoint == 'cash.open_cash' %}active{% endif %}">
+                                <i class="fas fa-door-open"></i>
+                                <span>Apertura</span>
+                            </a>
+                            <a href="{{ url_for('cash.close_cash') }}" class="submenu-item {% if request.endpoint == 'cash.close_cash' %}active{% endif %}">
+                                <i class="fas fa-lock"></i>
+                                <span>Cierre</span>
+                            </a>
+                            <a href="{{ url_for('cash.arqueo') }}" class="submenu-item {% if request.endpoint == 'cash.arqueo' %}active{% endif %}">
+                                <i class="fas fa-calculator"></i>
+                                <span>Arqueo</span>
+                            </a>
+                            <a href="{{ url_for('sales.index') }}" class="submenu-item {% if request.endpoint == 'sales.index' %}active{% endif %}">
+                                <i class="fas fa-file-invoice-dollar"></i>
+                                <span>Facturación</span>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </nav>
 
-            <div style="flex-grow: 1;"></div>
-            <div style="padding: 1rem; color: #94a3b8; font-size: 0.8rem; text-align: center; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 1rem;">
-                Usuario: <br><strong>{{ session.get('username') }}</strong><br><small style="color: var(--primary);">({{ session.get('role')|upper }})</small>
+            <div class="sidebar-footer">
+                <div class="user-profile-card">
+                    <div class="user-avatar-wrap">
+                        <div class="user-avatar">
+                            {{ (session.get('username') or 'U')[:1]|upper }}
+                        </div>
+                        <span class="online-indicator" title="En línea"></span>
+                    </div>
+                    <div class="user-info">
+                        <div class="user-name" title="{{ session.get('username') }}">{{ session.get('username') }}</div>
+                        <div class="user-role-badge">{{ (session.get('role') or 'USUARIO')|upper }}</div>
+                    </div>
+                </div>
+                <a href="{{ url_for('auth.logout') }}" class="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Cerrar Sesión</span>
+                </a>
             </div>
-            <a href="{{ url_for('auth.logout') }}" style="color: var(--danger);"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
         {% else %}
             <div style="flex-grow: 1;"></div>
-            <div style="text-align: center; color: #94a3b8; font-size: 0.8rem; margin-bottom: 2rem;">Inicie sesión para acceder</div>
+            <div style="text-align: center; color: #94a3b8; font-size: 0.82rem; margin-bottom: 2rem; background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 0.5rem; border: 1px dashed rgba(255,255,255,0.1);">
+                <i class="fas fa-lock" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block; color: var(--primary);"></i>
+                Inicie sesión para acceder al sistema
+            </div>
         {% endif %}
     </div>
     
@@ -93,21 +154,78 @@
     <script>
         // Modal functions
         function openModal(id) {
-            document.getElementById(id).classList.add('active');
+            const modal = document.getElementById(id);
+            if (modal) modal.classList.add('active');
         }
         function closeModal(id) {
-            document.getElementById(id).classList.remove('active');
+            const modal = document.getElementById(id);
+            if (modal) modal.classList.remove('active');
         }
 
-        // Submenu toggle functions
+        // Submenu toggle function con animación y persistencia
         function toggleSubmenu(id) {
             const submenu = document.getElementById(id);
             const btn = document.getElementById('btn-' + id);
-            if (submenu && btn) {
-                submenu.classList.toggle('collapsed');
-                btn.classList.toggle('open');
+            if (!submenu || !btn) return;
+
+            const isCurrentlyOpen = submenu.classList.contains('open');
+            const willBeOpen = !isCurrentlyOpen;
+
+            if (willBeOpen) {
+                submenu.classList.add('open');
+                btn.classList.add('open');
+                btn.setAttribute('aria-expanded', 'true');
+            } else {
+                submenu.classList.remove('open');
+                btn.classList.remove('open');
+                btn.setAttribute('aria-expanded', 'false');
+            }
+
+            // Guardar preferencia en localStorage
+            try {
+                localStorage.setItem('sidebar_' + id, willBeOpen ? 'open' : 'closed');
+            } catch (e) {
+                // Ignore storage errors if disabled
             }
         }
+
+        // Auto-inicialización al cargar la página
+        document.addEventListener('DOMContentLoaded', () => {
+            const menus = ['menu-informes', 'menu-caja'];
+
+            menus.forEach(id => {
+                const submenu = document.getElementById(id);
+                const btn = document.getElementById('btn-' + id);
+                if (!submenu || !btn) return;
+
+                // 1. Si contiene un elemento activo de la página actual, SIEMPRE abrirlo y marcar el botón
+                const hasActiveItem = submenu.querySelector('.submenu-item.active') !== null;
+                if (hasActiveItem) {
+                    btn.classList.add('has-active');
+                    submenu.classList.add('open');
+                    btn.classList.add('open');
+                    btn.setAttribute('aria-expanded', 'true');
+                    return;
+                }
+
+                // 2. Si no tiene elemento activo, verificar preferencia guardada en localStorage
+                let savedState = null;
+                try {
+                    savedState = localStorage.getItem('sidebar_' + id);
+                } catch (e) {}
+
+                // Por defecto el primer menú (Informes) inicia abierto si no hay preferencia
+                if (savedState === 'open' || (savedState === null && id === 'menu-informes')) {
+                    submenu.classList.add('open');
+                    btn.classList.add('open');
+                    btn.setAttribute('aria-expanded', 'true');
+                } else {
+                    submenu.classList.remove('open');
+                    btn.classList.remove('open');
+                    btn.setAttribute('aria-expanded', 'false');
+                }
+            });
+        });
     </script>
 </body>
 </html>
