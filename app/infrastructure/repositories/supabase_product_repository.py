@@ -1,4 +1,5 @@
 # app/infrastructure/repositories/supabase_product_repository.py
+import os
 import logging
 from typing import List, Optional
 from app.domain.models.product import Product
