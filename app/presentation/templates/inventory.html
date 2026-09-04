@@ -86,8 +86,8 @@
                     </span>
                 </td>
                 <td>{{ product.expiration_date }}</td>
-                <td>${{ "%.2f"|format(product.cost_price) }}</td>
-                <td style="color: var(--success); font-weight: bold;">${{ "%.2f"|format(product.sale_price) }}</td>
+                <td>C${{ "%.2f"|format(product.cost_price) }}</td>
+                <td style="color: var(--success); font-weight: bold;">C${{ "%.2f"|format(product.sale_price) }}</td>
                 <td>
                     {% if product.is_active %}
                     <button class="btn" style="padding: 0.25rem 0.5rem; background: var(--warning); margin-right: 0.25rem;" onclick="openRestockModal({{ product.id }}, '{{ product.name|replace("'", "\\'") }}')" title="Reabastecer">

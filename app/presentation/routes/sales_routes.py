@@ -14,7 +14,8 @@ from reportlab.lib import colors
 
 def create_sales_blueprint(sales_service: SalesService, inventory_service: InventoryService, 
                            client_service: ClientService, audit_service: AuditService, 
-                           product_repo: ProductRepositoryInterface) -> Blueprint:
+                           product_repo: ProductRepositoryInterface,
+                           inv_mov_repo = None, cash_repo = None) -> Blueprint:
     bp = Blueprint('sales', __name__, url_prefix='/sales')
 
     @bp.route('/')
@@ -46,6 +47,7 @@ def create_sales_blueprint(sales_service: SalesService, inventory_service: Inven
                 return redirect(url_for('sales.index'))
                 
             sale = sales_service.create_sale(items_data, client_id=client_id)
+            user_id = session.get('user_id')
             
             # Log action
             client_name = "Consumidor Final"
@@ -53,13 +55,49 @@ def create_sales_blueprint(sales_service: SalesService, inventory_service: Inven
                 cl = client_service.get_client(client_id)
                 if cl:
                     client_name = cl.name
+
+            # Registrar movimiento de entrada de efectivo en Supabase (cash_movements)
+            if cash_repo:
+                try:
+                    active_shift = cash_repo.get_active_shift()
+                    shift_id = active_shift.get('id') if active_shift else None
+                    cash_repo.add_movement({
+                        "shift_id": shift_id,
+                        "user_id": user_id,
+                        "movement_type": "Ingreso",
+                        "category": "Ventas Mostrador",
+                        "concept": f"Cobro venta #{sale.id} ({client_name})",
+                        "amount": sale.total,
+                        "voucher_reference": f"REC-{sale.id}"
+                    })
+                except Exception as e:
+                    print(f"Error logging cash movement on sale: {e}")
+
+            # Registrar salida de inventario en Kardex en Supabase (inventory_movements)
+            if inv_mov_repo:
+                try:
+                    for it in sale.items:
+                        prod = product_repo.get_by_id(it.product_id)
+                        current_stk = prod.stock if prod else 0
+                        inv_mov_repo.add_movement({
+                            "product_id": it.product_id,
+                            "user_id": user_id,
+                            "movement_type": "Salida",
+                            "quantity": -it.quantity,
+                            "previous_stock": current_stk + it.quantity,
+                            "new_stock": current_stk,
+                            "reason": f"Venta en Mostrador #{sale.id}"
+                        })
+                except Exception as e:
+                    print(f"Error logging inventory movement on sale: {e}")
+
             audit_service.log_action(
                 action=f"Registró Venta #{sale.id}",
-                user_id=session.get('user_id'),
-                details=f"Cliente: {client_name}, Total: ${sale.total:.2f}"
+                user_id=user_id,
+                details=f"Cliente: {client_name}, Total: C${sale.total:.2f}"
             )
             
-            flash(f'Venta #{sale.id} registrada correctamente. Total: ${sale.total:.2f}', 'success')
+            flash(f'Venta #{sale.id} registrada correctamente en Supabase. Total: C${sale.total:.2f}', 'success')
         except ValueError as e:
             flash(str(e), 'error')
         except Exception as e:
@@ -184,14 +222,14 @@ def create_sales_blueprint(sales_service: SalesService, inventory_service: Inven
             table_data.append([
                 Paragraph(prod_name, normal_style),
                 Paragraph(str(item.quantity), normal_style),
-                Paragraph(f"${item.price:.2f}", normal_style),
-                Paragraph(f"${item.subtotal:.2f}", normal_style)
+                Paragraph(f"C${item.price:.2f}", normal_style),
+                Paragraph(f"C${item.subtotal:.2f}", normal_style)
             ])
             
         table_data.append([
             "", "",
             Paragraph("<b>Total a Pagar:</b>", bold_style),
-            Paragraph(f"<b>${sale.total:.2f}</b>", bold_style)
+            Paragraph(f"<b>C${sale.total:.2f}</b>", bold_style)
         ])
         
         items_table = Table(table_data, colWidths=[240, 80, 100, 80])

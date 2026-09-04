@@ -21,19 +21,19 @@ body {
 }
 
 .sidebar {
-    width: 250px;
+    width: 260px;
     background: var(--glass-bg);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-right: 1px solid var(--glass-border);
-    padding: 2rem 1rem;
+    padding: 1.5rem 1rem;
     display: flex;
     flex-direction: column;
     gap: 1rem;
 }
 
 .sidebar h2 {
-    margin: 0 0 2rem 0;
+    margin: 0 0 1.5rem 0;
     text-align: center;
     color: var(--primary);
     font-weight: 700;
@@ -53,6 +53,116 @@ body {
 .sidebar a:hover {
     background: rgba(255, 255, 255, 0.1);
     transform: translateX(5px);
+}
+
+/* --- SUPERMENÚ CON SUBMENÚS DESPLEGABLES --- */
+.nav-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.menu-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.menu-toggle {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--text-color);
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.92rem;
+    font-weight: 600;
+    font-family: inherit;
+    transition: all 0.25s ease;
+}
+
+.menu-toggle:hover {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: rgba(59, 130, 246, 0.3);
+    color: #93c5fd;
+}
+
+.menu-toggle.open {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: var(--primary);
+    color: #93c5fd;
+}
+
+.menu-title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.menu-title i {
+    color: var(--primary);
+    font-size: 1rem;
+}
+
+.chevron {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    transition: transform 0.3s ease;
+}
+
+.menu-toggle.open .chevron {
+    transform: rotate(180deg);
+    color: #93c5fd;
+}
+
+.submenu {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding-left: 0.6rem;
+    margin-top: 0.35rem;
+    border-left: 2px solid rgba(59, 130, 246, 0.3);
+    margin-left: 0.75rem;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.submenu.collapsed {
+    display: none;
+}
+
+.submenu-item {
+    color: #94a3b8 !important;
+    text-decoration: none;
+    padding: 0.5rem 0.75rem !important;
+    border-radius: 0.4rem;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    transition: all 0.2s ease;
+}
+
+.submenu-item i {
+    width: 16px;
+    text-align: center;
+    font-size: 0.85rem;
+}
+
+.submenu-item:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #f8fafc !important;
+    transform: translateX(4px) !important;
+}
+
+.submenu-item.active {
+    background: rgba(59, 130, 246, 0.2) !important;
+    color: #60a5fa !important;
+    font-weight: 600;
+    border-left: 3px solid var(--primary);
 }
 
 .main-content {

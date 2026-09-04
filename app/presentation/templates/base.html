@@ -13,14 +13,59 @@
     <div class="sidebar">
         <h2>Vannesa ⚕️</h2>
         {% if session.get('user_id') %}
-            {% if session.get('role') == 'admin' %}
-                <a href="{{ url_for('dashboard.index') }}"><i class="fas fa-home"></i> Dashboard</a>
-                <a href="{{ url_for('inventory.list_products') }}"><i class="fas fa-boxes"></i> Inventario</a>
-            {% endif %}
-            <a href="{{ url_for('client.index') }}"><i class="fas fa-users"></i> Clientes</a>
-            <a href="{{ url_for('sales.index') }}"><i class="fas fa-cash-register"></i> Ventas y Cobro</a>
+            <nav class="nav-menu">
+                <!-- SUPERMENÚ INFORMES -->
+                <div class="menu-group">
+                    <button type="button" class="menu-toggle open" id="btn-menu-informes" onclick="toggleSubmenu('menu-informes')">
+                        <span class="menu-title"><i class="fas fa-file-invoice"></i> Informes</span>
+                        <i class="fas fa-chevron-down chevron"></i>
+                    </button>
+                    <div class="submenu" id="menu-informes">
+                        <a href="{{ url_for('dashboard.index') }}" class="submenu-item {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
+                            <i class="fas fa-home"></i> Dashboard
+                        </a>
+                        <a href="{{ url_for('cash.movements') }}" class="submenu-item {% if request.endpoint == 'cash.movements' %}active{% endif %}">
+                            <i class="fas fa-money-bill-transfer"></i> Movimientos de Caja
+                        </a>
+                        <a href="{{ url_for('inventory.list_products') }}" class="submenu-item {% if request.endpoint == 'inventory.list_products' %}active{% endif %}">
+                            <i class="fas fa-boxes"></i> Inventario
+                        </a>
+                        <a href="{{ url_for('dashboard.audit_logs') }}" class="submenu-item {% if request.endpoint == 'dashboard.audit_logs' %}active{% endif %}">
+                            <i class="fas fa-shield-alt"></i> Bitácora de Auditoría
+                        </a>
+                        <a href="{{ url_for('stats.top_bottom_products') }}" class="submenu-item {% if request.endpoint == 'stats.top_bottom_products' %}active{% endif %}">
+                            <i class="fas fa-chart-line"></i> Venta de Productos
+                        </a>
+                        <a href="{{ url_for('client.index') }}" class="submenu-item {% if request.endpoint == 'client.index' %}active{% endif %}">
+                            <i class="fas fa-users"></i> Clientes
+                        </a>
+                    </div>
+                </div>
+
+                <!-- SUPERMENÚ CAJA -->
+                <div class="menu-group">
+                    <button type="button" class="menu-toggle open" id="btn-menu-caja" onclick="toggleSubmenu('menu-caja')">
+                        <span class="menu-title"><i class="fas fa-cash-register"></i> Caja</span>
+                        <i class="fas fa-chevron-down chevron"></i>
+                    </button>
+                    <div class="submenu" id="menu-caja">
+                        <a href="{{ url_for('cash.open_cash') }}" class="submenu-item {% if request.endpoint == 'cash.open_cash' %}active{% endif %}">
+                            <i class="fas fa-door-open"></i> Apertura
+                        </a>
+                        <a href="{{ url_for('cash.close_cash') }}" class="submenu-item {% if request.endpoint == 'cash.close_cash' %}active{% endif %}">
+                            <i class="fas fa-lock"></i> Cierre
+                        </a>
+                        <a href="{{ url_for('sales.index') }}" class="submenu-item {% if request.endpoint == 'sales.index' %}active{% endif %}">
+                            <i class="fas fa-file-invoice-dollar"></i> Facturación
+                        </a>
+                    </div>
+                </div>
+            </nav>
+
             <div style="flex-grow: 1;"></div>
-            <div style="padding: 1rem; color: #94a3b8; font-size: 0.8rem; text-align: center;">Usuario: <br><strong>{{ session.get('username') }}</strong><br><small style="color: var(--primary);">({{ session.get('role')|upper }})</small></div>
+            <div style="padding: 1rem; color: #94a3b8; font-size: 0.8rem; text-align: center; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 1rem;">
+                Usuario: <br><strong>{{ session.get('username') }}</strong><br><small style="color: var(--primary);">({{ session.get('role')|upper }})</small>
+            </div>
             <a href="{{ url_for('auth.logout') }}" style="color: var(--danger);"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
         {% else %}
             <div style="flex-grow: 1;"></div>
@@ -49,6 +94,16 @@
         }
         function closeModal(id) {
             document.getElementById(id).classList.remove('active');
+        }
+
+        // Submenu collapse / toggle functions
+        function toggleSubmenu(id) {
+            const submenu = document.getElementById(id);
+            const btn = document.getElementById('btn-' + id);
+            if (submenu && btn) {
+                submenu.classList.toggle('collapsed');
+                btn.classList.toggle('open');
+            }
         }
     </script>
 </body>

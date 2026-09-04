@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+.badge-entry {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--success);
+    border: 1px solid var(--success);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.35rem;
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+.badge-exit {
+    background: rgba(59, 130, 246, 0.15);
+    color: #93c5fd;
+    border: 1px solid var(--primary);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.35rem;
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+.badge-adj {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--danger);
+    border: 1px solid var(--danger);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.35rem;
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+</style>
+
+<div class="glass-panel" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1><i class="fas fa-exchange-alt" style="color: var(--primary);"></i> Registro de Movimientos de Inventario</h1>
+        <p>Kardex y auditoría histórica de entradas, salidas, mermas y ajustes de medicamentos</p>
+    </div>
+    <div style="display: flex; gap: 1rem;">
+        <button class="btn btn-success" onclick="openModal('addMovementModal')">
+            <i class="fas fa-plus"></i> Registrar Movimiento
+        </button>
+        <a href="{{ url_for('inventory.list_products') }}" class="btn" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
+            <i class="fas fa-boxes"></i> Ver Catálogo
+        </a>
+    </div>
+</div>
+
+<!-- Tarjetas KPI de Resumen -->
+<div class="dashboard-cards" style="margin-top: 1.5rem;">
+    <div class="card" style="border-left: 4px solid var(--primary);">
+        <h3>Movimientos Registrados</h3>
+        <div class="value">{{ metrics.total_movements }}</div>
+        <p style="color: #94a3b8; font-size: 0.85rem; margin-top: 0.5rem;">En el período actual</p>
+    </div>
+    <div class="card" style="border-left: 4px solid var(--success);">
+        <h3>Entradas Totales</h3>
+        <div class="value" style="color: var(--success);">+{{ metrics.total_entries }} unid.</div>
+        <p style="color: #94a3b8; font-size: 0.85rem; margin-top: 0.5rem;">Compras y devoluciones recibidas</p>
+    </div>
+    <div class="card" style="border-left: 4px solid #38bdf8;">
+        <h3>Salidas Despachadas</h3>
+        <div class="value" style="color: #38bdf8;">-{{ metrics.total_exits }} unid.</div>
+        <p style="color: #94a3b8; font-size: 0.85rem; margin-top: 0.5rem;">Ventas registradas en mostrador</p>
+    </div>
+    <div class="card" style="border-left: 4px solid var(--danger);">
+        <h3>Mermas y Ajustes</h3>
+        <div class="value" style="color: var(--danger);">-{{ metrics.total_losses }} unid.</div>
+        <p style="color: #94a3b8; font-size: 0.85rem; margin-top: 0.5rem;">Vencimientos y roturas descartadas</p>
+    </div>
+</div>
+
+<!-- Filtros Interactivos -->
+<div class="glass-panel" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; padding: 1.25rem;">
+    <div class="form-group" style="flex: 2; margin-bottom: 0; min-width: 250px;">
+        <label for="searchMovInput" style="margin-bottom: 0.25rem;"><i class="fas fa-search"></i> Buscar Producto o Código</label>
+        <input type="text" id="searchMovInput" class="form-control" placeholder="Ej. Paracetamol, MED-001..." onkeyup="filterMovements()">
+    </div>
+    <div class="form-group" style="flex: 1; margin-bottom: 0; min-width: 180px;">
+        <label for="typeFilter" style="margin-bottom: 0.25rem;"><i class="fas fa-filter"></i> Tipo de Movimiento</label>
+        <select id="typeFilter" class="form-control" onchange="filterMovements()">
+            <option value="">Todos los tipos</option>
+            <option value="entrada">Solo Entradas (+)</option>
+            <option value="salida">Solo Salidas (-)</option>
+            <option value="ajuste">Ajustes / Mermas</option>
+        </select>
+    </div>
+    <div style="display: flex; align-items: center; margin-top: 1.25rem;">
+        <button type="button" class="btn" onclick="resetFilters()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
+            <i class="fas fa-redo"></i> Restablecer
+        </button>
+    </div>
+</div>
+
+<!-- Tabla de Movimientos -->
+<div class="glass-panel" style="overflow-x: auto;">
+    <table style="min-width: 950px;">
+        <thead>
+            <tr>
+                <th>Ref.</th>
+                <th>Fecha / Hora</th>
+                <th>Código</th>
+                <th>Medicamento</th>
+                <th>Tipo</th>
+                <th>Cantidad</th>
+                <th>Stock Previo</th>
+                <th>Stock Final</th>
+                <th>Motivo / Justificación</th>
+                <th>Usuario</th>
+            </tr>
+        </thead>
+        <tbody id="movementsTableBody">
+            {% for m in movements %}
+            <tr class="mov-row" data-name="{{ m.product_name|lower }}" data-code="{{ m.product_code|lower }}" data-type="{{ m.type|lower }}">
+                <td style="font-family: monospace; color: #94a3b8;">{{ m.id }}</td>
+                <td style="font-size: 0.85rem; color: #94a3b8;">{{ m.timestamp }}</td>
+                <td><strong>{{ m.product_code }}</strong></td>
+                <td>
+                    <strong>{{ m.product_name }}</strong><br>
+                    <small style="color: #94a3b8;">{{ m.presentation }}</small>
+                </td>
+                <td>
+                    <span class="{{ m.badge_class }}">
+                        {{ m.type }}
+                    </span>
+                </td>
+                <td style="font-weight: bold; font-size: 1rem; color: {{ 'var(--success)' if m.quantity > 0 else 'var(--danger)' }};">
+                    {{ '+' if m.quantity > 0 else '' }}{{ m.quantity }}
+                </td>
+                <td style="color: #94a3b8;">{{ m.previous_stock }}</td>
+                <td style="font-weight: bold; color: #f1f5f9;">{{ m.new_stock }}</td>
+                <td style="font-size: 0.9rem;">{{ m.reason }}</td>
+                <td><span style="color: #38bdf8; font-size: 0.85rem;">{{ m.user }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal para Registrar Nuevo Movimiento -->
+<div id="addMovementModal" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3 style="margin: 0;"><i class="fas fa-dolly"></i> Registrar Movimiento de Inventario</h3>
+            <button class="close-btn" onclick="closeModal('addMovementModal')">&times;</button>
+        </div>
+        <form action="{{ url_for('inventory_movements.index') }}" method="POST">
+            <div class="form-group">
+                <label><i class="fas fa-pills"></i> Seleccionar Medicamento</label>
+                <select name="product_id" class="form-control" required>
+                    <option value="">Seleccione un medicamento...</option>
+                    {% for p in products %}
+                    <option value="{{ p.id }}">{{ p.product_code }} - {{ p.name }} (Stock actual: {{ p.stock }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label><i class="fas fa-exchange-alt"></i> Tipo de Movimiento</label>
+                    <select name="type" class="form-control" required>
+                        <option value="Entrada">Entrada (+)</option>
+                        <option value="Salida">Salida (-)</option>
+                        <option value="Ajuste / Merma">Ajuste / Merma (-)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-sort-numeric-up"></i> Cantidad</label>
+                    <input type="number" name="quantity" min="1" value="1" class="form-control" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label><i class="fas fa-tag"></i> Motivo / Justificación</label>
+                <select name="reason" class="form-control" required>
+                    <option value="Compra / Recepción de Factura">Compra / Recepción de Factura</option>
+                    <option value="Venta / Despacho">Venta / Despacho</option>
+                    <option value="Devolución de Cliente">Devolución de Cliente</option>
+                    <option value="Merma por Rotura o Deterioro">Merma por Rotura o Deterioro</option>
+                    <option value="Medicamento Vencido / Descarte">Medicamento Vencido / Descarte</option>
+                    <option value="Ajuste por Conteo Físico">Ajuste por Conteo Físico</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label><i class="fas fa-comment"></i> Observaciones Adicionales</label>
+                <textarea name="notes" class="form-control" rows="2" placeholder="Número de factura, lote o motivo del ajuste..."></textarea>
+            </div>
+
+            <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: flex-end;">
+                <button type="button" class="btn" style="background: rgba(255,255,255,0.1);" onclick="closeModal('addMovementModal')">Cancelar</button>
+                <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Guardar Movimiento</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function filterMovements() {
+        const text = document.getElementById('searchMovInput').value.toLowerCase();
+        const type = document.getElementById('typeFilter').value.toLowerCase();
+        const rows = document.querySelectorAll('.mov-row');
+
+        rows.forEach(row => {
+            const name = row.getAttribute('data-name');
+            const code = row.getAttribute('data-code');
+            const rowType = row.getAttribute('data-type');
+
+            const matchesText = name.includes(text) || code.includes(text);
+            const matchesType = !type || rowType.includes(type);
+
+            if (matchesText && matchesType) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    function resetFilters() {
+        document.getElementById('searchMovInput').value = '';
+        document.getElementById('typeFilter').value = '';
+        filterMovements();
+    }
+</script>
+{% endblock %}

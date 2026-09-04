@@ -220,7 +220,7 @@
             .then(res => res.json())
             .then(data => {
                 // Update Card Values
-                document.getElementById('cardTotalRevenue').textContent = `$${data.total_revenue.toFixed(2)}`;
+                document.getElementById('cardTotalRevenue').textContent = `C$${data.total_revenue.toFixed(2)}`;
                 document.getElementById('cardTotalSales').textContent = data.total_sales;
                 
                 // Update Least Sold Product

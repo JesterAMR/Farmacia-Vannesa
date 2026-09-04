@@ -10,7 +10,7 @@
                 <option value="">Seleccione un producto...</option>
                 {% for product in products %}
                 <option value="{{ product.id }}" data-price="{{ product.price }}" data-name="{{ product.name }}" data-stock="{{ product.stock }}">
-                    {{ product.name }} - ${{ "%.2f"|format(product.price) }} (Stock: {{ product.stock }})
+                    {{ product.name }} - C${{ "%.2f"|format(product.price) }} (Stock: {{ product.stock }})
                 </option>
                 {% endfor %}
             </select>
@@ -33,7 +33,7 @@
         </table>
         
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
-            <h3>Total: $<span id="cartTotal">0.00</span></h3>
+            <h3>Total: C$<span id="cartTotal">0.00</span></h3>
             <form id="checkoutForm" action="{{ url_for('sales.checkout') }}" method="POST" style="display: flex; gap: 0.75rem; align-items: center;">
                 <div style="min-width: 180px;">
                     <select name="client_id" class="form-control" style="padding: 0.4rem; font-size: 0.85rem;">
@@ -60,7 +60,7 @@
                     <small style="color: #94a3b8;">{{ sale.date[:16].replace('T', ' ') }}</small>
                 </div>
                 <div style="text-align: right;">
-                    <strong>${{ "%.2f"|format(sale.total) }}</strong><br>
+                    <strong>C${{ "%.2f"|format(sale.total) }}</strong><br>
                     <div style="display: flex; gap: 5px; justify-content: flex-end; margin-top: 5px;">
                         <a href="{{ url_for('sales.invoice', id=sale.id) }}" class="btn" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;" title="Ver Recibo"><i class="fas fa-eye"></i></a>
                         <a href="{{ url_for('sales.invoice_pdf', id=sale.id) }}" class="btn btn-success" style="font-size: 0.75rem; padding: 0.2rem 0.4rem; background: var(--primary);" title="Descargar PDF"><i class="fas fa-file-pdf"></i></a>
@@ -160,7 +160,7 @@
                     <td>
                         <input type="number" class="form-control" style="width: 80px; display: inline-block; padding: 0.25rem;" value="${item.quantity}" min="1" onchange="updateCartItemQuantity(${index}, this.value)">
                     </td>
-                    <td>$${subtotal.toFixed(2)}</td>
+                    <td>C$${subtotal.toFixed(2)}</td>
                     <td><button type="button" class="btn btn-danger" style="padding: 0.25rem 0.5rem;" onclick="removeCartItem(${index})"><i class="fas fa-trash"></i></button></td>
                 </tr>
             `;
