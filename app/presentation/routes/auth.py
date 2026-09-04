@@ -8,9 +8,22 @@ def create_auth_blueprint(auth_service: AuthService) -> Blueprint:
     @bp.route('/login', methods=['GET', 'POST'])
     def login():
         if request.method == 'POST':
-            username = request.form.get('username')
-            password = request.form.get('password')
-            user = auth_service.login(username, password)
+            username = request.form.get('username', '').strip()
+            password = request.form.get('password', '')
+            try:
+                user = auth_service.login(username, password)
+            except Exception as e:
+                import logging
+                logging.error(f"[Auth Error] Fallo al autenticar en Supabase: {e}")
+                err_msg = str(e)
+                if 'Unregistered API key' in err_msg or '401' in err_msg:
+                    flash('Error de credenciales (401): La SUPABASE_KEY en Render no es válida o está desactualizada. Copie la clave anon o service_role (JWT) desde Supabase Settings -> API.', 'error')
+                elif 'SUPABASE_URL' in err_msg or 'SUPABASE_KEY' in err_msg:
+                    flash('Faltan configurar las variables SUPABASE_URL o SUPABASE_KEY en Render (Environment Variables).', 'error')
+                else:
+                    flash(f'Error al conectar con la base de datos de Supabase: {e}', 'error')
+                return render_template('login.html')
+
             if user:
                 session['user_id'] = user.id
                 session['username'] = user.username
@@ -26,10 +39,18 @@ def create_auth_blueprint(auth_service: AuthService) -> Blueprint:
     @bp.route('/register', methods=['GET', 'POST'])
     def register():
         if request.method == 'POST':
-            username = request.form.get('username')
-            password = request.form.get('password')
+            username = request.form.get('username', '').strip()
+            password = request.form.get('password', '')
             
-            if auth_service.register(username, password):
+            try:
+                success = auth_service.register(username, password)
+            except Exception as e:
+                import logging
+                logging.error(f"[Auth Register Error] {e}")
+                flash(f'Error al conectar con la base de datos de Supabase: {e}', 'error')
+                return render_template('register.html')
+
+            if success:
                 flash('Usuario registrado exitosamente. Ahora puedes iniciar sesión.', 'success')
                 return redirect(url_for('auth.login'))
             else:

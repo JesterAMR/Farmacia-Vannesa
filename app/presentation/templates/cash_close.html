@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="glass-panel" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1><i class="fas fa-calculator" style="color: var(--warning);"></i> Cierre y Arqueo de Caja</h1>
+        <p>Conciliación de dinero físico, desglose monetario y cuadre final de turno</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <button type="button" class="btn" onclick="window.print()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
+            <i class="fas fa-print"></i> Imprimir Arqueo
+        </button>
+        <a href="{{ url_for('cash.open_cash') }}" class="btn" style="background: var(--primary);">
+            <i class="fas fa-door-open"></i> Ver Apertura
+        </a>
+    </div>
+</div>
+
+<!-- Tarjetas Resumen de Ventas y Efectivo Esperado -->
+<div class="dashboard-cards" style="margin-top: 1.5rem;">
+    <div class="card" style="border-left: 4px solid var(--primary);">
+        <h3>Fondo Inicial (Apertura)</h3>
+        <div class="value" id="valFondoInicial">C${{ "%.2f"|format(summary.initial_cash) }}</div>
+        <p style="color: #94a3b8; font-size: 0.85rem; margin-top: 0.5rem;">Registrado a las {{ summary.opened_at[-5:] }}</p>
+    </div>
+    <div class="card" style="border-left: 4px solid var(--success);">
+        <h3>Ventas en Efectivo</h3>
+        <div class="value" id="valVentasEfectivo">C${{ "%.2f"|format(summary.cash_sales) }}</div>
+        <p style="color: #94a3b8; font-size: 0.85rem; margin-top: 0.5rem;">Ingresos cobrados en mostrador</p>
+    </div>
+    <div class="card" style="border-left: 4px solid #38bdf8;">
+        <h3>Ventas Tarjeta / POS / Transf.</h3>
+        <div class="value">C${{ "%.2f"|format(summary.card_sales + summary.transfer_sales) }}</div>
+        <p style="color: #94a3b8; font-size: 0.85rem; margin-top: 0.5rem;">Total ventas electrónicas</p>
+    </div>
+    <div class="card" style="border-left: 4px solid var(--warning); background: rgba(245, 158, 11, 0.08);">
+        <h3 style="color: #f59e0b;">Efectivo Esperado en Caja</h3>
+        <div class="value" style="color: #f59e0b;" id="valEsperadoDisplay">C${{ "%.2f"|format(summary.expected_cash) }}</div>
+        <p style="color: #94a3b8; font-size: 0.85rem; margin-top: 0.5rem;">Fondo Inicial + Ventas Efectivo</p>
+    </div>
+</div>
+
+<div style="display: flex; gap: 2rem; flex-wrap: wrap; margin-top: 1.5rem;">
+    <!-- Columna Izquierda: Tabla de Conteo Físico -->
+    <div class="glass-panel" style="flex: 1.2; min-width: 340px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.75rem;">
+            <h2 style="margin: 0; font-size: 1.3rem;">
+                <i class="fas fa-coins" style="color: var(--warning);"></i> Conteo Físico de Efectivo
+            </h2>
+            <button type="button" class="btn" onclick="fillExactMatch()" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: rgba(59, 130, 246, 0.2); border: 1px solid var(--primary); color: #93c5fd;">
+                <i class="fas fa-magic"></i> Simular Cuadre Exacto
+            </button>
+        </div>
+        <p style="color: #94a3b8; font-size: 0.85rem; margin-top: 0;">Digita las unidades físicas contadas en caja para determinar si existe faltante o sobrante:</p>
+
+        <div style="max-height: 420px; overflow-y: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Denominación</th>
+                        <th>Tipo</th>
+                        <th style="width: 110px;">Piezas</th>
+                        <th style="text-align: right;">Subtotal (C$)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in denominations %}
+                    <tr>
+                        <td><strong>{{ item.label }}</strong></td>
+                        <td><span style="font-size: 0.8rem; color: #94a3b8;">{{ item.type }}</span></td>
+                        <td>
+                            <input type="number" min="0" value="0" class="form-control close-denom-input" 
+                                   data-value="{{ item.value }}" 
+                                   style="padding: 0.3rem 0.5rem; text-align: center; height: 32px;"
+                                   oninput="updateClosingCalculations()">
+                        </td>
+                        <td style="text-align: right; font-weight: bold;" id="close-subtotal-{{ item.value }}">
+                            C$ 0.00
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 2px dashed rgba(255,255,255,0.2);">
+            <span style="font-weight: 600; color: #94a3b8;">Total Físico Contado:</span>
+            <span style="font-size: 1.6rem; font-weight: bold; color: var(--text-color);" id="displayFisicoTotal">
+                C$ 0.00
+            </span>
+        </div>
+    </div>
+
+    <!-- Columna Derecha: Conciliación, Cuadre y Cierre -->
+    <div class="glass-panel" style="flex: 1; min-width: 320px;">
+        <h2 style="margin-top: 0; margin-bottom: 1.5rem; font-size: 1.3rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.75rem;">
+            <i class="fas fa-balance-scale"></i> Conciliación y Acta de Cierre
+        </h2>
+
+        <!-- Card de Estado de Cuadre -->
+        <div id="boxCuadreStatus" style="padding: 1.25rem; border-radius: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); margin-bottom: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                <span style="color: #94a3b8;">Efectivo del Sistema:</span>
+                <strong style="color: #f1f5f9;">C$ {{ "%.2f"|format(summary.expected_cash) }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                <span style="color: #94a3b8;">Efectivo Contado:</span>
+                <strong id="labelEfectivoContado" style="color: #f1f5f9;">C$ 0.00</strong>
+            </div>
+            <hr style="border: 0; border-top: 1px dashed rgba(255,255,255,0.15); margin: 0.75rem 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: bold;">Diferencia:</span>
+                <span id="displayDiferencia" style="font-size: 1.4rem; font-weight: bold; color: #94a3b8;">
+                    C$ -{{ "%.2f"|format(summary.expected_cash) }}
+                </span>
+            </div>
+            <div style="margin-top: 0.75rem; text-align: center;">
+                <span id="badgeEstadoCuadre" style="display: inline-block; padding: 0.35rem 0.8rem; border-radius: 0.5rem; font-weight: bold; font-size: 0.9rem; background: rgba(239, 68, 68, 0.2); color: var(--danger); border: 1px solid var(--danger);">
+                    Faltante (Conteo Incompleto)
+                </span>
+            </div>
+        </div>
+
+        <form action="{{ url_for('cash.close_cash') }}" method="POST">
+            <input type="hidden" name="physical_total" id="inputPhysicalTotal" value="0">
+            <input type="hidden" name="difference" id="inputDifference" value="0">
+
+            <div class="form-group">
+                <label><i class="fas fa-vault"></i> Retiro / Depósito a Bóveda (C$)</label>
+                <input type="number" step="0.01" name="vault_deposit" class="form-control" value="{{ summary.cash_sales }}" style="font-weight: bold; color: #38bdf8;">
+                <small style="color: #94a3b8;">Monto recaudado que se deposita en la caja fuerte.</small>
+            </div>
+
+            <div class="form-group">
+                <label><i class="fas fa-wallet"></i> Fondo Remanente para Próximo Turno (C$)</label>
+                <input type="number" step="0.01" name="remnant_cash" class="form-control" value="{{ summary.initial_cash }}" style="font-weight: bold; color: var(--success);">
+                <small style="color: #94a3b8;">Fondo base que queda en gaveta para el siguiente cajero.</small>
+            </div>
+
+            <div class="form-group">
+                <label><i class="fas fa-comment-dots"></i> Justificación de Diferencia / Observaciones</label>
+                <textarea name="notes" class="form-control" rows="3" placeholder="Indicar motivos si existiera sobrante o faltante de caja..."></textarea>
+            </div>
+
+            <div style="margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-success" style="width: 100%; padding: 0.9rem; font-size: 1.05rem;">
+                    <i class="fas fa-lock"></i> Realizar Cierre de Caja y Generar Acta
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Historial de Cierres Recientes -->
+<div class="glass-panel" style="margin-top: 2rem;">
+    <h2><i class="fas fa-file-invoice-dollar"></i> Historial Reciente de Cierres de Turno</h2>
+    <div style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha / Hora</th>
+                    <th>Cajero</th>
+                    <th>Turno</th>
+                    <th>Efectivo Esperado</th>
+                    <th>Efectivo Contado</th>
+                    <th>Diferencia</th>
+                    <th>Resultado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in recent_closings %}
+                <tr>
+                    <td>{{ c.date }}</td>
+                    <td><strong>{{ c.cashier }}</strong></td>
+                    <td>{{ c.shift }}</td>
+                    <td>C${{ "%.2f"|format(c.expected) }}</td>
+                    <td style="font-weight: bold;">C${{ "%.2f"|format(c.counted) }}</td>
+                    <td style="font-weight: bold; color: {{ 'var(--success)' if c.difference == 0 else ('#38bdf8' if c.difference > 0 else 'var(--danger)') }};">
+                        {{ '+C$' if c.difference > 0 else 'C$' }}{{ "%.2f"|format(c.difference) }}
+                    </td>
+                    <td>
+                        <span style="padding: 0.2rem 0.5rem; border-radius: 0.3rem; font-size: 0.8rem; font-weight: bold;
+                                     background: {{ 'rgba(16, 185, 129, 0.2)' if c.status == 'Cuadre Exacto' else ('rgba(56, 189, 248, 0.2)' if c.status == 'Sobrante' else 'rgba(239, 68, 68, 0.2)') }};
+                                     color: {{ 'var(--success)' if c.status == 'Cuadre Exacto' else ('#38bdf8' if c.status == 'Sobrante' else 'var(--danger)') }};">
+                            {{ c.status }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const expectedCash = {{ summary.expected_cash }};
+
+    function updateClosingCalculations() {
+        let totalCounted = 0;
+        const inputs = document.querySelectorAll('.close-denom-input');
+
+        inputs.forEach(input => {
+            const val = parseFloat(input.getAttribute('data-value'));
+            const qty = parseInt(input.value) || 0;
+            const sub = val * qty;
+            totalCounted += sub;
+
+            const subEl = document.getElementById('close-subtotal-' + val);
+            if (subEl) {
+                subEl.textContent = 'C$ ' + sub.toFixed(2);
+            }
+        });
+
+        document.getElementById('displayFisicoTotal').textContent = 'C$ ' + totalCounted.toFixed(2);
+        document.getElementById('labelEfectivoContado').textContent = 'C$ ' + totalCounted.toFixed(2);
+        document.getElementById('inputPhysicalTotal').value = totalCounted.toFixed(2);
+
+        const diff = totalCounted - expectedCash;
+        document.getElementById('inputDifference').value = diff.toFixed(2);
+
+        const diffDisplay = document.getElementById('displayDiferencia');
+        const badge = document.getElementById('badgeEstadoCuadre');
+
+        if (Math.abs(diff) < 0.01) {
+            diffDisplay.textContent = 'C$ 0.00';
+            diffDisplay.style.color = 'var(--success)';
+            badge.textContent = 'Cuadre Exacto ✔';
+            badge.style.background = 'rgba(16, 185, 129, 0.2)';
+            badge.style.color = 'var(--success)';
+            badge.style.borderColor = 'var(--success)';
+        } else if (diff > 0) {
+            diffDisplay.textContent = '+C$ ' + diff.toFixed(2);
+            diffDisplay.style.color = '#38bdf8';
+            badge.textContent = 'Sobrante de Caja (+C$ ' + diff.toFixed(2) + ')';
+            badge.style.background = 'rgba(56, 189, 248, 0.2)';
+            badge.style.color = '#38bdf8';
+            badge.style.borderColor = '#38bdf8';
+        } else {
+            diffDisplay.textContent = '-C$ ' + Math.abs(diff).toFixed(2);
+            diffDisplay.style.color = 'var(--danger)';
+            badge.textContent = 'Faltante de Caja (-C$ ' + Math.abs(diff).toFixed(2) + ')';
+            badge.style.background = 'rgba(239, 68, 68, 0.2)';
+            badge.style.color = 'var(--danger)';
+            badge.style.borderColor = 'var(--danger)';
+        }
+    }
+
+    function fillExactMatch() {
+        // C$ 9,340.50 = 7x1000 (7000) + 4x500 (2000) + 1x200 (200) + 1x100 (100) + 2x20 (40) + 0x10 + 0x5 + 0x1 + 1x0.50 (0.50)
+        const mockDistribution = {
+            "1000": 7,
+            "500": 4,
+            "200": 1,
+            "100": 1,
+            "50": 0,
+            "20": 2,
+            "10": 0,
+            "5": 0,
+            "1": 0,
+            "0.5": 1
+        };
+
+        const inputs = document.querySelectorAll('.close-denom-input');
+        inputs.forEach(input => {
+            const valKey = input.getAttribute('data-value');
+            if (mockDistribution[valKey] !== undefined) {
+                input.value = mockDistribution[valKey];
+            } else {
+                input.value = 0;
+            }
+        });
+
+        updateClosingCalculations();
+    }
+</script>
+{% endblock %}
