@@ -3,10 +3,22 @@ import logging
 from typing import List
 from app.domain.models.audit_log import AuditLog
 from app.infrastructure.database.supabase_connection import get_supabase_client
+from app.infrastructure.database.sqlite_connection import SQLiteDatabase
+from app.infrastructure.repositories.sqlite_audit_repository import SQLiteAuditRepository
+
+logger = logging.getLogger(__name__)
 
 class SupabaseAuditRepository:
     def __init__(self):
-        self.db = get_supabase_client()
+        try:
+            self.db = get_supabase_client()
+        except Exception as e:
+            logger.warning(f"Failed to initialize Supabase client: {e}")
+            self.db = None
+            
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        db_path = os.path.join(base_dir, 'vannesa_db.sqlite')
+        self._sqlite_repo = SQLiteAuditRepository(SQLiteDatabase(db_path=db_path))
 
     def create(self, log: AuditLog) -> AuditLog:
         data = {

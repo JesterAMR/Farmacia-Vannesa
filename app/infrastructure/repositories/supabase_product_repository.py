@@ -4,10 +4,22 @@ from typing import List, Optional
 from app.domain.models.product import Product
 from app.application.interfaces.product_repository import ProductRepositoryInterface
 from app.infrastructure.database.supabase_connection import get_supabase_client
+from app.infrastructure.database.sqlite_connection import SQLiteDatabase
+from app.infrastructure.repositories.sqlite_product_repository import SQLiteProductRepository
+
+logger = logging.getLogger(__name__)
 
 class SupabaseProductRepository(ProductRepositoryInterface):
     def __init__(self):
-        self.db = get_supabase_client()
+        try:
+            self.db = get_supabase_client()
+        except Exception as e:
+            logger.warning(f"Failed to initialize Supabase client: {e}")
+            self.db = None
+            
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        db_path = os.path.join(base_dir, 'vannesa_db.sqlite')
+        self._sqlite_repo = SQLiteProductRepository(SQLiteDatabase(db_path=db_path))
 
     def get_all(self, include_inactive: bool = False) -> List[Product]:
         try:
@@ -28,8 +40,8 @@ class SupabaseProductRepository(ProductRepositoryInterface):
             raw_active = row.get('is_active')
             is_active = True if raw_active is None else bool(raw_active)
 
-            if not include_inactive and not is_active:
-                continue
+                    if not include_inactive and not is_active:
+                        continue
 
             products.append(Product(
                 id=row.get('id'),
