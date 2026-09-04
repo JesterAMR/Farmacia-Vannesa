@@ -1,4 +1,5 @@
 # app/infrastructure/repositories/supabase_audit_repository.py
+import os
 import logging
 from typing import List
 from app.domain.models.audit_log import AuditLog

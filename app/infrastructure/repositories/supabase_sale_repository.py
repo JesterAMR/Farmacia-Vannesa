@@ -1,4 +1,5 @@
 # app/infrastructure/repositories/supabase_sale_repository.py
+import os
 import logging
 from typing import List, Optional
 from app.domain.models.sale import Sale, SaleItem
