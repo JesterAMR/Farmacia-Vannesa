@@ -79,9 +79,34 @@ def create_app():
     app.register_blueprint(sales_bp)
     app.register_blueprint(client_bp)
 
+    # Blueprints adicionales (Caja, Movimientos de Inventario y Estadísticas)
+    try:
+        from app.presentation.routes.cash_routes import create_cash_blueprint
+        app.register_blueprint(create_cash_blueprint())
+    except Exception as e:
+        import logging
+        logging.warning(f"No se pudo registrar cash_blueprint: {e}")
+
+    try:
+        from app.presentation.routes.inventory_movement_routes import create_inventory_movement_blueprint
+        app.register_blueprint(create_inventory_movement_blueprint())
+    except Exception as e:
+        import logging
+        logging.warning(f"No se pudo registrar inventory_movement_blueprint: {e}")
+
+    try:
+        from app.presentation.routes.stats_routes import create_stats_blueprint
+        app.register_blueprint(create_stats_blueprint())
+    except Exception as e:
+        import logging
+        logging.warning(f"No se pudo registrar stats_blueprint: {e}")
+
     return app
 
+# Instancia para servidores de producción WSGI (Gunicorn en Render: gunicorn app.main:app)
+app = create_app()
+
 if __name__ == '__main__':
-    app = create_app()
-    print("Iniciando servidor de Farmacia Vannesa v2 en http://localhost:5000")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    print(f"Iniciando servidor de Farmacia Vannesa v2 en http://0.0.0.0:{port}")
+    app.run(debug=True, host='0.0.0.0', port=port)

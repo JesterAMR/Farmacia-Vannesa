@@ -1,6 +1,5 @@
 # app/infrastructure/repositories/supabase_audit_repository.py
 import logging
-import os
 from typing import List
 from app.domain.models.audit_log import AuditLog
 from app.infrastructure.database.supabase_connection import get_supabase_client
@@ -22,47 +21,55 @@ class SupabaseAuditRepository:
         self._sqlite_repo = SQLiteAuditRepository(SQLiteDatabase(db_path=db_path))
 
     def create(self, log: AuditLog) -> AuditLog:
-        if self.db:
-            try:
-                data = {
-                    "action": log.action,
-                    "user_id": log.user_id,
-                    "username": log.username,
-                    "details": log.details,
-                    "timestamp": log.timestamp
-                }
-                response = self.db.table('audit_logs').insert(data).execute()
-                if response.data:
-                    log.id = response.data[0].get('id')
-                return log
-            except Exception as e:
-                logger.warning(f"Supabase error in create audit log: {e}. Falling back to SQLite.")
-        return self._sqlite_repo.create(log)
+        data = {
+            "action": log.action,
+            "user_id": log.user_id,
+            "username": log.username,
+            "details": log.details,
+            "timestamp": log.timestamp
+        }
+        try:
+            response = self.db.table('audit_logs').insert(data).execute()
+            if response.data:
+                log.id = response.data[0].get('id')
+            return log
+        except Exception as e:
+            logging.error(f"[SupabaseAuditRepository] create error: {e}")
+            return log
 
     def get_recent(self, limit: int = 20) -> List[AuditLog]:
-        if self.db:
+        try:
+            response = self.db.table('audit_logs') \
+                .select('*, users(username)') \
+                .order('id', desc=True) \
+                .limit(limit) \
+                .execute()
+        except Exception as e:
+            logging.warning(f"[SupabaseAuditRepository] Fallback without join: {e}")
             try:
                 response = self.db.table('audit_logs') \
-                    .select('*, users(username)') \
+                    .select('*') \
                     .order('id', desc=True) \
                     .limit(limit) \
                     .execute()
+            except Exception as e2:
+                logging.error(f"[SupabaseAuditRepository] get_recent error: {e2}")
+                return []
+
+        logs = []
+        for row in response.data or []:
+            username_fetched = "Desconocido"
+            if row.get('users'):
+                username_fetched = row['users'].get('username', 'Desconocido')
+            elif row.get('username'):
+                username_fetched = row.get('username')
                 
-                logs = []
-                for row in response.data:
-                    username_fetched = "Desconocido"
-                    if row.get('users'):
-                        username_fetched = row['users'].get('username', 'Desconocido')
-                        
-                    logs.append(AuditLog(
-                        id=row.get('id'),
-                        user_id=row.get('user_id'),
-                        username=username_fetched,
-                        action=row.get('action'),
-                        timestamp=row.get('timestamp'),
-                        details=row.get('details')
-                    ))
-                return logs
-            except Exception as e:
-                logger.warning(f"Supabase error in get_recent audit logs: {e}. Falling back to SQLite.")
-        return self._sqlite_repo.get_recent(limit=limit)
+            logs.append(AuditLog(
+                id=row.get('id'),
+                user_id=row.get('user_id'),
+                username=username_fetched,
+                action=row.get('action', ''),
+                timestamp=row.get('timestamp', ''),
+                details=row.get('details', '')
+            ))
+        return logs
