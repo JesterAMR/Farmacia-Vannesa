@@ -40,7 +40,7 @@ class SupabaseProductRepository(ProductRepositoryInterface):
             raw_active = row.get('is_active')
             is_active = True if raw_active is None else bool(raw_active)
 
-                    if not include_inactive and not is_active:
+            if not include_inactive and not is_active:
                         continue
 
             products.append(Product(
