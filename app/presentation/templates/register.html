@@ -5,6 +5,7 @@
     <div class="glass-panel" style="width: 100%; max-width: 400px; text-align: center;">
         <h2 style="margin-bottom: 2rem;">Registro de Usuario</h2>
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group" style="text-align: left;">
                 <label>Nuevo Usuario (Username)</label>
                 <input type="text" name="username" class="form-control" required autofocus>
@@ -13,7 +14,16 @@
                 <label>Contraseña Segura</label>
                 <input type="password" name="password" class="form-control" required>
             </div>
-            <button type="submit" class="btn" style="width: 100%; margin-top: 1rem;">Registrar a la base de datos</button>
+            {% if not is_bootstrap %}
+            <div class="form-group" style="text-align: left;">
+                <label>Rol de Acceso</label>
+                <select name="role" class="form-control">
+                    <option value="cajero">Cajero / Mostrador</option>
+                    <option value="admin">Administrador</option>
+                </select>
+            </div>
+            {% endif %}
+            <button type="submit" class="btn btn-success" style="width: 100%; margin-top: 1rem;">Registrar Usuario</button>
         </form>
         <p style="margin-top: 2rem; font-size: 0.9rem;">
             <a href="{{ url_for('auth.login') }}" style="color: var(--primary);">← Volver al acceso</a>

@@ -12,7 +12,11 @@ class ProductRepositoryInterface(ABC):
         pass
 
     @abstractmethod
-    def get_all(self) -> List[Product]:
+    def get_by_code(self, product_code: str) -> Optional[Product]:
+        pass
+
+    @abstractmethod
+    def get_all(self, include_inactive: bool = False) -> List[Product]:
         pass
 
     @abstractmethod
@@ -22,3 +26,4 @@ class ProductRepositoryInterface(ABC):
     @abstractmethod
     def delete(self, id: int) -> bool:
         pass
+

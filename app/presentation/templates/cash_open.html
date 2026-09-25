@@ -24,6 +24,7 @@
         </h2>
         
         <form action="{{ url_for('cash.open_cash') }}" method="POST" id="formOpenCash">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label for="cashierName"><i class="fas fa-user"></i> Cajero / Responsable</label>
                 <input type="text" id="cashierName" name="cashier" class="form-control" value="{{ session.get('username', 'Cajero') }}" required>

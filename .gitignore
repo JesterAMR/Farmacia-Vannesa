@@ -2,4 +2,26 @@
 venv/
 .venv/
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Databases
+*.sqlite
+*.db
 vannesa_db.sqlite
+
+# PyInstaller & Build artifacts
+build/
+dist/
+*.spec
+ngrok.exe
+ngrok_dir/
+
+# Testing & Cache
+.pytest_cache/
+.coverage
+htmlcov/
+temp_content.txt
+.secret_key
+

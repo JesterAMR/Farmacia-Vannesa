@@ -39,3 +39,7 @@ class AuthService:
         user.password_hash = generate_password_hash(new_password)
         self._user_repository.update(user)
         return True
+
+    def count_users(self) -> int:
+        return self._user_repository.count_users()
+

@@ -145,6 +145,7 @@
             <button class="close-btn" onclick="closeModal('addMovementModal')">&times;</button>
         </div>
         <form action="{{ url_for('inventory_movements.index') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label><i class="fas fa-pills"></i> Seleccionar Medicamento</label>
                 <select name="product_name" class="form-control" required>

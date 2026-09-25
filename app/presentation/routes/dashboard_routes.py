@@ -77,20 +77,10 @@ def create_dashboard_blueprint(dashboard_service: DashboardService) -> Blueprint
                 logging.error(f"[Audit Error] get_recent_logs: {e}")
                 logs = []
 
-        if not logs:
-            from datetime import datetime
-            now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-            logs = [
-                {"timestamp": f"{now_str}:12", "username": "admin", "action": "Inició sesión en el sistema", "details": "Autenticación exitosa desde terminal web"},
-                {"timestamp": "2026-09-03 10:15", "username": "admin", "action": "Registró Entrada de Medicamento", "details": "Paracetamol 500mg (+100 unidades). Factura #F-8842"},
-                {"timestamp": "2026-09-03 09:42", "username": "cajero1", "action": "Registró Venta #142", "details": "Cliente: Consumidor Final, Total: C$250.00"},
-                {"timestamp": "2026-09-03 07:30", "username": "admin", "action": "Registró Apertura de Caja", "details": "Caja #1 - Turno Matutino, Fondo: C$1,500.00"},
-                {"timestamp": "2026-09-02 21:05", "username": "marvin.c", "action": "Registró Cierre de Caja", "details": "Arqueo completado, Cuadre Exacto: C$8,750.00"}
-            ]
-
+        # Log counts calculation on real database entries
         count_sales = sum(1 for l in logs if 'venta' in l['action'].lower())
-        count_inventory = sum(1 for l in logs if any(k in l['action'].lower() for k in ['medicamento', 'inventario', 'reabasteció', 'ajustó']))
-        count_security = sum(1 for l in logs if any(k in l['action'].lower() for k in ['sesión', 'usuario', 'caja', 'apertura', 'cierre']))
+        count_inventory = sum(1 for l in logs if any(k in l['action'].lower() for k in ['medicamento', 'inventario', 'reabasteció', 'ajustó', 'movimiento']))
+        count_security = sum(1 for l in logs if any(k in l['action'].lower() for k in ['sesión', 'usuario', 'caja', 'apertura', 'cierre', 'autenticación']))
 
         return render_template('audit_logs.html',
                                logs=logs,

@@ -56,7 +56,19 @@ class SQLiteProductRepository(ProductRepositoryInterface):
                 return self._row_to_product(row)
             return None
 
+    def get_by_code(self, product_code: str) -> Optional[Product]:
+        if not product_code:
+            return None
+        with self.db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM products WHERE LOWER(TRIM(product_code)) = LOWER(TRIM(?))", (product_code,))
+            row = cursor.fetchone()
+            if row:
+                return self._row_to_product(row)
+            return None
+
     def get_all(self, include_inactive: bool = False) -> List[Product]:
+
         with self.db.get_connection() as conn:
             cursor = conn.cursor()
             if include_inactive:

@@ -123,6 +123,7 @@
             <button class="close-btn" onclick="closeModal('addCashMovementModal')">&times;</button>
         </div>
         <form action="{{ url_for('cash.movements') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label><i class="fas fa-exchange-alt"></i> Tipo de Movimiento</label>
                 <select name="movement_type" class="form-control" required>

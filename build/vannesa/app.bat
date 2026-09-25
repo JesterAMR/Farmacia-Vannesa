@@ -1,3 +1,0 @@
-"Vannesa.exe"
-
-PAUSE

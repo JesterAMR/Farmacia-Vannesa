@@ -1,195 +1,122 @@
 from flask import Blueprint, render_template, request, session
 from app.presentation.routes.auth import login_required
+from app.application.services.inventory_service import InventoryService
+from app.application.services.sales_service import SalesService
+from collections import defaultdict
+from datetime import datetime
 
-def create_stats_blueprint() -> Blueprint:
+def create_stats_blueprint(inventory_service: InventoryService, sales_service: SalesService) -> Blueprint:
     bp = Blueprint('stats', __name__, url_prefix='/stats')
 
     @bp.route('/top-bottom')
     @login_required
     def top_bottom_products():
         period = request.args.get('period', 'monthly')
+        all_products = inventory_service.get_all_products(include_inactive=False)
+        all_sales = sales_service.get_all_sales()
 
-        # Mock data visual para productos más vendidos (Top Sellers)
-        top_products = [
-            {
-                "rank": 1,
-                "code": "MED-001",
-                "name": "Paracetamol 500mg",
-                "generic": "Acetaminofén",
-                "laboratory": "Ramos",
-                "units_sold": 184,
-                "percentage": 100,
-                "unit_price": 15.00,
-                "revenue": 2760.00,
-                "current_stock": 150,
-                "stock_status": "Óptimo",
-                "badge_color": "var(--success)"
-            },
-            {
-                "rank": 2,
-                "code": "MED-004",
-                "name": "Ibuprofeno 400mg",
-                "generic": "Ibuprofeno",
-                "laboratory": "MK",
-                "units_sold": 142,
-                "percentage": 77,
-                "unit_price": 20.00,
-                "revenue": 2840.00,
-                "current_stock": 33,
-                "stock_status": "Medio",
-                "badge_color": "var(--primary)"
-            },
-            {
-                "rank": 3,
-                "code": "MED-002",
-                "name": "Amoxicilina 500mg",
-                "generic": "Amoxicilina Trihidrato",
-                "laboratory": "Calox",
-                "units_sold": 115,
-                "percentage": 62,
-                "unit_price": 35.00,
-                "revenue": 4025.00,
-                "current_stock": 23,
-                "stock_status": "Normal",
-                "badge_color": "var(--primary)"
-            },
-            {
-                "rank": 4,
-                "code": "MED-005",
-                "name": "Loratadina 10mg",
-                "generic": "Loratadina",
-                "laboratory": "Ramos",
-                "units_sold": 98,
-                "percentage": 53,
-                "unit_price": 12.00,
-                "revenue": 1176.00,
-                "current_stock": 14,
-                "stock_status": "Normal",
-                "badge_color": "var(--primary)"
-            },
-            {
-                "rank": 5,
-                "code": "MED-008",
-                "name": "Omeprazol 20mg",
-                "generic": "Omeprazol",
-                "laboratory": "MK",
-                "units_sold": 87,
-                "percentage": 47,
-                "unit_price": 25.00,
-                "revenue": 2175.00,
-                "current_stock": 62,
-                "stock_status": "Óptimo",
-                "badge_color": "var(--primary)"
-            },
-            {
-                "rank": 6,
-                "code": "MED-015",
-                "name": "Acetaminofén Jarabe 120ml",
-                "generic": "Acetaminofén",
-                "laboratory": "Infasa",
-                "units_sold": 64,
-                "percentage": 35,
-                "unit_price": 45.00,
-                "revenue": 2880.00,
-                "current_stock": 27,
-                "stock_status": "Normal",
-                "badge_color": "var(--primary)"
-            }
-        ]
+        # Mapear productos por ID para acceso rápido
+        prod_map = {p.id: p for p in all_products}
 
-        # Mock data visual para productos menos vendidos (Baja rotación / Estancados)
-        bottom_products = [
-            {
-                "rank": 1,
-                "code": "MED-042",
-                "name": "Espironolactona 25mg",
-                "generic": "Espironolactona",
-                "laboratory": "Menarini",
-                "units_sold": 0,
-                "days_without_sale": 75,
-                "current_stock": 18,
-                "cost_price": 65.00,
-                "tied_capital": 1170.00,
-                "expiration_date": "2026-11-15",
-                "recommendation": "Descuento 20% / Promoción",
-                "urgency": "Alta",
-                "badge_urgency": "var(--danger)"
-            },
-            {
-                "rank": 2,
-                "code": "MED-039",
-                "name": "Metildopa 250mg",
-                "generic": "Metildopa",
-                "laboratory": "Bayer",
-                "units_sold": 1,
-                "days_without_sale": 58,
-                "current_stock": 24,
-                "cost_price": 48.00,
-                "tied_capital": 1152.00,
-                "expiration_date": "2026-12-30",
-                "recommendation": "Reubicar en exhibición",
-                "urgency": "Media",
-                "badge_urgency": "var(--warning)"
-            },
-            {
-                "rank": 3,
-                "code": "MED-055",
-                "name": "Ketoconazol Crema 2% 30g",
-                "generic": "Ketoconazol",
-                "laboratory": "Medinfar",
-                "units_sold": 1,
-                "days_without_sale": 52,
-                "current_stock": 12,
-                "cost_price": 55.00,
-                "tied_capital": 660.00,
-                "expiration_date": "2027-02-10",
-                "recommendation": "Consultar rotación con médico",
-                "urgency": "Baja",
-                "badge_urgency": "#38bdf8"
-            },
-            {
-                "rank": 4,
-                "code": "MED-061",
-                "name": "Ranitidina 150mg",
-                "generic": "Ranitidina Clorhidrato",
-                "laboratory": "MK",
-                "units_sold": 2,
-                "days_without_sale": 44,
-                "current_stock": 30,
-                "cost_price": 18.00,
-                "tied_capital": 540.00,
-                "expiration_date": "2027-01-20",
-                "recommendation": "Sustituir por Omeprazol",
-                "urgency": "Media",
-                "badge_urgency": "var(--warning)"
-            },
-            {
-                "rank": 5,
-                "code": "MED-070",
-                "name": "Dexametasona Ampolla 4mg/2ml",
-                "generic": "Dexametasona Fosfato",
-                "laboratory": "Pharmalat",
-                "units_sold": 2,
-                "days_without_sale": 39,
-                "current_stock": 15,
-                "cost_price": 32.00,
-                "tied_capital": 480.00,
-                "expiration_date": "2026-10-05",
-                "recommendation": "Próximo a vencer / Descuento",
-                "urgency": "Crítica",
-                "badge_urgency": "var(--danger)"
-            }
-        ]
+        # Acumular unidades vendidas y recaudación por producto
+        units_by_product = defaultdict(int)
+        revenue_by_product = defaultdict(float)
 
-        # Resumen de KPIs
+        for sale in all_sales:
+            for item in sale.items:
+                units_by_product[item.product_id] += item.quantity
+                revenue_by_product[item.product_id] += item.subtotal
+
+        # Ordenar productos con ventas para el Top
+        ranked_sales = sorted(
+            units_by_product.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+
+        max_units = ranked_sales[0][1] if ranked_sales else 1
+
+        top_products = []
+        for rank, (prod_id, units) in enumerate(ranked_sales[:10], start=1):
+            p = prod_map.get(prod_id)
+            if not p:
+                continue
+            pct = int((units / max_units) * 100) if max_units > 0 else 0
+            stock_status = "Óptimo" if p.stock > 30 else ("Medio" if p.stock > 10 else "Bajo")
+            badge_color = "var(--success)" if p.stock > 30 else ("var(--primary)" if p.stock > 10 else "var(--danger)")
+
+            top_products.append({
+                "rank": rank,
+                "code": p.product_code or f"MED-{p.id:03d}",
+                "name": p.name,
+                "generic": p.generic_name or p.name,
+                "laboratory": p.laboratory or "Genérico",
+                "units_sold": units,
+                "percentage": pct,
+                "unit_price": p.sale_price,
+                "revenue": round(revenue_by_product[prod_id], 2),
+                "current_stock": p.stock,
+                "stock_status": stock_status,
+                "badge_color": badge_color
+            })
+
+        # Productos con menos ventas o sin ventas (Baja rotación / Capital estancado)
+        bottom_candidates = []
+        for p in all_products:
+            sold = units_by_product.get(p.id, 0)
+            tied_capital = round(p.stock * p.cost_price, 2)
+            bottom_candidates.append({
+                "product": p,
+                "units_sold": sold,
+                "tied_capital": tied_capital
+            })
+
+        # Ordenar por menores ventas y luego por mayor capital estancado
+        bottom_candidates.sort(key=lambda x: (x["units_sold"], -x["tied_capital"]))
+
+        bottom_products = []
+        for rank, item in enumerate(bottom_candidates[:10], start=1):
+            p = item["product"]
+            sold = item["units_sold"]
+            urgency = "Crítica" if p.stock > 20 and sold == 0 else ("Alta" if sold == 0 else "Media")
+            badge_urgency = "var(--danger)" if urgency == "Crítica" else ("var(--warning)" if urgency == "Alta" else "#38bdf8")
+            recom = "Promoción o Descuento" if sold == 0 else "Reubicar en exhibición"
+
+            bottom_products.append({
+                "rank": rank,
+                "code": p.product_code or f"MED-{p.id:03d}",
+                "name": p.name,
+                "generic": p.generic_name or p.name,
+                "laboratory": p.laboratory or "Genérico",
+                "units_sold": sold,
+                "days_without_sale": 30 if sold == 0 else 5,
+                "current_stock": p.stock,
+                "cost_price": p.cost_price,
+                "tied_capital": item["tied_capital"],
+                "expiration_date": p.expiration_date or "N/D",
+                "recommendation": recom,
+                "urgency": urgency,
+                "badge_urgency": badge_urgency
+            })
+
+        # Métricas generales de resumen
+        total_units = sum(units_by_product.values())
+        total_top_revenue = sum(revenue_by_product.values())
+        total_tied_capital = sum(item["tied_capital"] for item in bottom_candidates)
+
+        top_prod_name = top_products[0]["name"] if top_products else "Ninguno aún"
+        top_units_count = top_products[0]["units_sold"] if top_products else 0
+        least_prod_name = bottom_products[0]["name"] if bottom_products else "Ninguno aún"
+        least_units_count = bottom_products[0]["units_sold"] if bottom_products else 0
+
         summary = {
-            "top_product": "Paracetamol 500mg",
-            "top_units": 184,
-            "least_sold_product": "Espironolactona 25mg",
-            "least_units": 0,
-            "total_top_revenue": 15856.00,
-            "total_units_sold": 690,
-            "total_tied_capital": 4002.00,
+            "top_product": top_prod_name,
+            "top_units": top_units_count,
+            "least_sold_product": least_prod_name,
+            "least_units": least_units_count,
+            "total_top_revenue": total_top_revenue,
+            "total_units_sold": total_units,
+            "total_tied_capital": total_tied_capital,
             "period": period
         }
 

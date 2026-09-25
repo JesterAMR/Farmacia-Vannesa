@@ -122,6 +122,7 @@
         </div>
 
         <form action="{{ url_for('cash.close_cash') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="physical_total" id="inputPhysicalTotal" value="0">
             <input type="hidden" name="difference" id="inputDifference" value="0">
 

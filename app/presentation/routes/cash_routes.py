@@ -1,9 +1,23 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from app.presentation.routes.auth import login_required
+from app.application.services.cash_service import CashService
+from app.application.services.audit_service import AuditService
 from datetime import datetime
 
-def create_cash_blueprint() -> Blueprint:
+def create_cash_blueprint(cash_service: CashService, audit_service: AuditService) -> Blueprint:
     bp = Blueprint('cash', __name__, url_prefix='/cash')
+
+    denominations = [
+        {"value": 1000, "label": "C$ 1,000", "type": "Billete"},
+        {"value": 500, "label": "C$ 500", "type": "Billete"},
+        {"value": 200, "label": "C$ 200", "type": "Billete"},
+        {"value": 100, "label": "C$ 100", "type": "Billete"},
+        {"value": 50, "label": "C$ 50", "type": "Billete"},
+        {"value": 20, "label": "C$ 20", "type": "Billete"},
+        {"value": 10, "label": "C$ 10", "type": "Billete / Moneda"},
+        {"value": 5, "label": "C$ 5", "type": "Moneda"},
+        {"value": 1, "label": "C$ 1", "type": "Moneda"}
+    ]
 
     @bp.route('/open', methods=['GET', 'POST'])
     @login_required
@@ -18,60 +32,41 @@ def create_cash_blueprint() -> Blueprint:
             except ValueError:
                 initial_amount = 0.0
 
-            flash(f'¡Apertura de caja registrada con éxito! Turno: {shift}, Fondo inicial: C${initial_amount:.2f}', 'success')
+            user_id = session.get('user_id')
+            try:
+                new_shift = cash_service.open_shift(
+                    cashier=cashier,
+                    shift_name=shift,
+                    initial_amount=initial_amount,
+                    notes=notes,
+                    user_id=user_id
+                )
+                audit_service.log_action(
+                    action="Registró Apertura de Caja",
+                    user_id=user_id,
+                    details=f"Turno: {shift}, Fondo inicial: C${initial_amount:.2f}"
+                )
+                flash(f'¡Apertura de caja registrada con éxito! Turno: {shift}, Fondo inicial: C${initial_amount:.2f}', 'success')
+            except ValueError as e:
+                flash(str(e), 'error')
+            except Exception as e:
+                flash(f'Error al registrar apertura: {e}', 'error')
+
             return redirect(url_for('cash.open_cash'))
 
-        # Mock data visual para aperturas recientes
-        recent_openings = [
-            {
-                "id": 104,
-                "date": datetime.now().strftime("%Y-%m-%d 07:30"),
-                "cashier": session.get('username', 'admin'),
-                "shift": "Matutino",
-                "register": "Caja #1 - Principal",
-                "initial_amount": 1500.00,
-                "status": "Abierta (En curso)"
-            },
-            {
-                "id": 103,
-                "date": "2026-09-02 14:45",
-                "cashier": "marvin.c",
-                "shift": "Vespertino",
-                "register": "Caja #1 - Principal",
-                "initial_amount": 1500.00,
-                "status": "Cerrada"
-            },
-            {
-                "id": 102,
-                "date": "2026-09-02 07:30",
-                "cashier": "claudio.a",
-                "shift": "Matutino",
-                "register": "Caja #1 - Principal",
-                "initial_amount": 1200.00,
-                "status": "Cerrada"
-            },
-            {
-                "id": 101,
-                "date": "2026-09-01 14:40",
-                "cashier": "edwin.s",
-                "shift": "Vespertino",
-                "register": "Caja #1 - Principal",
-                "initial_amount": 1500.00,
-                "status": "Cerrada"
-            }
-        ]
-
-        denominations = [
-            {"value": 1000, "label": "C$ 1,000", "type": "Billete"},
-            {"value": 500, "label": "C$ 500", "type": "Billete"},
-            {"value": 200, "label": "C$ 200", "type": "Billete"},
-            {"value": 100, "label": "C$ 100", "type": "Billete"},
-            {"value": 50, "label": "C$ 50", "type": "Billete"},
-            {"value": 20, "label": "C$ 20", "type": "Billete"},
-            {"value": 10, "label": "C$ 10", "type": "Billete / Moneda"},
-            {"value": 5, "label": "C$ 5", "type": "Moneda"},
-            {"value": 1, "label": "C$ 1", "type": "Moneda"}
-        ]
+        # Consultar turnos reales
+        raw_shifts = cash_service.get_recent_shifts(limit=10)
+        recent_openings = []
+        for s in raw_shifts:
+            recent_openings.append({
+                "id": s.id,
+                "date": s.opened_at,
+                "cashier": s.cashier_username or "Cajero",
+                "shift": s.shift_name,
+                "register": s.register_name,
+                "initial_amount": s.initial_amount,
+                "status": f"{s.status} ({'En curso' if s.status == 'Abierta' else 'Cerrada'})"
+            })
 
         return render_template('cash_open.html', 
                                current_time=datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -83,81 +78,83 @@ def create_cash_blueprint() -> Blueprint:
     def close_cash():
         if request.method == 'POST':
             physical_total_str = request.form.get('physical_total', '0')
-            difference_str = request.form.get('difference', '0')
             notes = request.form.get('notes', '')
             try:
                 physical_total = float(physical_total_str)
-                diff = float(difference_str)
             except ValueError:
                 physical_total = 0.0
-                diff = 0.0
 
-            if diff == 0:
-                flash(f'¡Arqueo y Cierre de caja completado! Cuadre exacto con C${physical_total:.2f}.', 'success')
-            elif diff > 0:
-                flash(f'Cierre registrado con sobrante de C${diff:.2f}. Total físico: C${physical_total:.2f}.', 'success')
-            else:
-                flash(f'Cierre registrado con faltante de C${abs(diff):.2f}. Total físico: C${physical_total:.2f}.', 'error')
+            user_id = session.get('user_id')
+            try:
+                closed_shift = cash_service.close_shift(physical_cash=physical_total, notes=notes)
+                diff = closed_shift.difference if closed_shift else 0.0
+                
+                status_txt = "Cuadre Exacto" if diff == 0 else ("Sobrante" if diff > 0 else "Faltante")
+                audit_service.log_action(
+                    action="Registró Cierre de Caja",
+                    user_id=user_id,
+                    details=f"Total Físico: C${physical_total:.2f}, {status_txt}: C${abs(diff):.2f}"
+                )
+
+                if diff == 0:
+                    flash(f'¡Arqueo y Cierre de caja completado! Cuadre exacto con C${physical_total:.2f}.', 'success')
+                elif diff > 0:
+                    flash(f'Cierre registrado con sobrante de C${diff:.2f}. Total físico: C${physical_total:.2f}.', 'success')
+                else:
+                    flash(f'Cierre registrado con faltante de C${abs(diff):.2f}. Total físico: C${physical_total:.2f}.', 'error')
+            except ValueError as e:
+                flash(str(e), 'error')
+            except Exception as e:
+                flash(f'Error al registrar cierre: {e}', 'error')
 
             return redirect(url_for('cash.close_cash'))
 
-        # Mock resumen del turno actual
-        shift_summary = {
-            "initial_cash": 1500.00,
-            "cash_sales": 7840.50,
-            "card_sales": 3420.00,
-            "transfer_sales": 1250.00,
-            "total_sales": 12510.50,
-            "expected_cash": 9340.50, # Fondo + ventas en efectivo
-            "cashier": session.get('username', 'admin'),
-            "shift": "Matutino",
-            "opened_at": datetime.now().strftime("%Y-%m-%d 07:30"),
-            "closed_at": datetime.now().strftime("%Y-%m-%d %H:%M")
-        }
-
-        # Denominaciones para el arqueo
-        denominations = [
-            {"value": 1000, "label": "C$ 1,000", "type": "Billete"},
-            {"value": 500, "label": "C$ 500", "type": "Billete"},
-            {"value": 200, "label": "C$ 200", "type": "Billete"},
-            {"value": 100, "label": "C$ 100", "type": "Billete"},
-            {"value": 50, "label": "C$ 50", "type": "Billete"},
-            {"value": 20, "label": "C$ 20", "type": "Billete"},
-            {"value": 10, "label": "C$ 10", "type": "Billete"},
-            {"value": 5, "label": "C$ 5", "type": "Moneda"},
-            {"value": 1, "label": "C$ 1", "type": "Moneda"},
-            {"value": 0.50, "label": "C$ 0.50", "type": "Moneda"}
-        ]
-
-        recent_closings = [
-            {
-                "date": "2026-09-02 21:05",
-                "cashier": "marvin.c",
-                "shift": "Vespertino",
-                "expected": 8750.00,
-                "counted": 8750.00,
-                "difference": 0.00,
-                "status": "Cuadre Exacto"
-            },
-            {
-                "date": "2026-09-02 14:35",
-                "cashier": "claudio.a",
-                "shift": "Matutino",
-                "expected": 9120.00,
-                "counted": 9130.00,
-                "difference": 10.00,
-                "status": "Sobrante"
-            },
-            {
-                "date": "2026-09-01 21:10",
-                "cashier": "edwin.s",
-                "shift": "Vespertino",
-                "expected": 7430.00,
-                "counted": 7415.00,
-                "difference": -15.00,
-                "status": "Faltante"
+        # Datos del turno activo
+        open_shift = cash_service.get_open_shift()
+        if open_shift:
+            fin_summary = cash_service.get_financial_summary(shift_id=open_shift.id)
+            shift_summary = {
+                "initial_cash": open_shift.initial_amount,
+                "cash_sales": fin_summary.get("total_income", 0.0),
+                "card_sales": 0.0,
+                "transfer_sales": 0.0,
+                "total_sales": fin_summary.get("total_income", 0.0),
+                "expected_cash": fin_summary.get("current_drawer", open_shift.initial_amount),
+                "cashier": open_shift.cashier_username or session.get('username', 'Cajero'),
+                "shift": open_shift.shift_name,
+                "opened_at": open_shift.opened_at,
+                "closed_at": datetime.now().strftime("%Y-%m-%d %H:%M")
             }
-        ]
+        else:
+            shift_summary = {
+                "initial_cash": 0.0,
+                "cash_sales": 0.0,
+                "card_sales": 0.0,
+                "transfer_sales": 0.0,
+                "total_sales": 0.0,
+                "expected_cash": 0.0,
+                "cashier": session.get('username', 'Cajero'),
+                "shift": "Sin turno activo",
+                "opened_at": "--:--",
+                "closed_at": datetime.now().strftime("%Y-%m-%d %H:%M")
+            }
+
+        # Cierres recientes
+        all_shifts = cash_service.get_recent_shifts(limit=15)
+        recent_closings = []
+        for s in all_shifts:
+            if s.status == "Cerrada":
+                diff = s.difference or 0.0
+                status_label = "Cuadre Exacto" if diff == 0 else ("Sobrante" if diff > 0 else "Faltante")
+                recent_closings.append({
+                    "date": s.closed_at or s.opened_at,
+                    "cashier": s.cashier_username or "Cajero",
+                    "shift": s.shift_name,
+                    "expected": s.expected_cash or s.initial_amount,
+                    "counted": s.physical_cash or 0.0,
+                    "difference": diff,
+                    "status": status_label
+                })
 
         return render_template('cash_close.html',
                                summary=shift_summary,
@@ -174,75 +171,56 @@ def create_cash_blueprint() -> Blueprint:
     def movements():
         if request.method == 'POST':
             m_type = request.form.get('movement_type', 'Egreso')
-            amount = float(request.form.get('amount', '0') or 0)
+            try:
+                amount = float(request.form.get('amount', '0') or 0)
+            except ValueError:
+                amount = 0.0
             concept = request.form.get('concept', 'Movimiento de caja')
             voucher = request.form.get('voucher', '')
-            flash(f'{m_type} registrado correctamente por monto de C${amount:.2f}: {concept}.', 'success')
+
+            user_id = session.get('user_id')
+            try:
+                cash_service.add_movement(
+                    movement_type=m_type,
+                    concept=concept,
+                    amount=amount,
+                    category="Operativo",
+                    voucher=voucher,
+                    user_id=user_id
+                )
+                audit_service.log_action(
+                    action=f"Registró {m_type} de Caja",
+                    user_id=user_id,
+                    details=f"Monto: C${amount:.2f}, Concepto: {concept}"
+                )
+                flash(f'{m_type} registrado correctamente por monto de C${amount:.2f}: {concept}.', 'success')
+            except ValueError as e:
+                flash(str(e), 'error')
+            except Exception as e:
+                flash(f'Error al registrar movimiento: {e}', 'error')
+
             return redirect(url_for('cash.movements'))
 
-        movements_data = [
-            {
-                "id": "CAJ-089",
-                "date": "2026-09-03 07:30",
-                "type": "Ingreso",
-                "category": "Fondo de Apertura",
-                "concept": "Fondo base para inicio de turno matutino",
-                "amount": 1500.00,
-                "cashier": "admin",
-                "voucher": "AP-104"
-            },
-            {
-                "id": "CAJ-090",
-                "date": "2026-09-03 09:15",
-                "type": "Ingreso",
-                "category": "Ventas Mostrador",
-                "concept": "Cobro acumulado ventas en efectivo período matutino",
-                "amount": 4250.50,
-                "cashier": "cajero1",
-                "voucher": "POS-BLOQ-1"
-            },
-            {
-                "id": "CAJ-091",
-                "date": "2026-09-03 10:20",
-                "type": "Egreso",
-                "category": "Gasto Operativo",
-                "concept": "Pago de flete recepción medicamentos droguería",
-                "amount": 250.00,
-                "cashier": "admin",
-                "voucher": "REC-041"
-            },
-            {
-                "id": "CAJ-092",
-                "date": "2026-09-03 11:45",
-                "type": "Ingreso",
-                "category": "Ventas Mostrador",
-                "concept": "Cobro acumulado ventas en efectivo mediodía",
-                "amount": 3590.00,
-                "cashier": "cajero1",
-                "voucher": "POS-BLOQ-2"
-            },
-            {
-                "id": "CAJ-093",
-                "date": "2026-09-03 12:30",
-                "type": "Egreso",
-                "category": "Insumos",
-                "concept": "Compra de rollos térmicos para impresora de tickets",
-                "amount": 400.00,
-                "cashier": "admin",
-                "voucher": "FACT-392"
-            },
-            {
-                "id": "CAJ-094",
-                "date": "2026-09-03 13:00",
-                "type": "Retiro Bóveda",
-                "category": "Custodia Financiera",
-                "concept": "Traslado parcial de excedente a caja fuerte / bóveda",
-                "amount": 5000.00,
-                "cashier": "admin",
-                "voucher": "BOV-022"
-            }
-        ]
+        # Obtener movimientos reales de la base de datos
+        raw_movements = cash_service.get_movements(limit=100)
+        movements_data = []
+        for m in raw_movements:
+            movements_data.append({
+                "id": f"CAJ-{m.id:04d}",
+                "date": m.created_at,
+                "type": m.movement_type,
+                "category": m.category,
+                "concept": m.concept,
+                "amount": m.amount,
+                "cashier": m.username or "Sistema",
+                "voucher": m.voucher_reference or "N/A"
+            })
 
-        return render_template('cash_movements.html', movements=movements_data)
+        # Totales financieros reales
+        fin_totals = cash_service.get_financial_summary()
+
+        return render_template('cash_movements.html', 
+                               movements=movements_data,
+                               totals=fin_totals)
 
     return bp

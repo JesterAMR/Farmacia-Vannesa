@@ -5,6 +5,7 @@
     <div class="glass-panel" style="width: 100%; max-width: 400px; text-align: center;">
         <h2 style="margin-bottom: 2rem;">Acceso al Sistema ⚕️</h2>
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group" style="text-align: left;">
                 <label>Usuario</label>
                 <input type="text" name="username" class="form-control" required autofocus>

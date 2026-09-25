@@ -89,6 +89,36 @@ class SupabaseProductRepository(ProductRepositoryInterface):
             logging.error(f"[SupabaseProductRepository] Error get_by_id ({product_id}): {e}")
             return None
 
+    def get_by_code(self, product_code: str) -> Optional[Product]:
+        if not product_code:
+            return None
+        try:
+            response = self.db.table('products').select('*').ilike('product_code', product_code.strip()).execute()
+            if not response.data:
+                return None
+            row = response.data[0]
+            raw_active = row.get('is_active')
+            is_active = True if raw_active is None else bool(raw_active)
+
+            return Product(
+                id=row.get('id'),
+                name=row.get('name', 'Sin Nombre'),
+                generic_name=row.get('generic_name', ''),
+                product_code=row.get('product_code', ''),
+                description=row.get('description', ''),
+                stock=int(row.get('stock') or 0),
+                presentation=row.get('presentation', ''),
+                laboratory=row.get('laboratory', ''),
+                expiration_date=row.get('expiration_date', ''),
+                dose=row.get('dose', ''),
+                cost_price=float(row.get('cost_price') or 0.0),
+                sale_price=float(row.get('sale_price') or 0.0),
+                is_active=is_active
+            )
+        except Exception as e:
+            logging.error(f"[SupabaseProductRepository] Error get_by_code ({product_code}): {e}")
+            return None
+
     def add(self, product: Product) -> Product:
         data = {
             "name": product.name,

@@ -89,6 +89,58 @@ class SQLiteDatabase:
                 )
             ''')
 
+            # Cash shifts table (Apertura y Cierre de Caja)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS cash_shifts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    shift_name TEXT NOT NULL DEFAULT 'Matutino',
+                    register_name TEXT NOT NULL DEFAULT 'Caja #1 - Principal',
+                    initial_amount REAL NOT NULL DEFAULT 0.0,
+                    expected_cash REAL DEFAULT NULL,
+                    physical_cash REAL DEFAULT NULL,
+                    difference REAL DEFAULT NULL,
+                    vault_deposit REAL DEFAULT NULL,
+                    remnant_cash REAL DEFAULT NULL,
+                    status TEXT NOT NULL DEFAULT 'Abierta',
+                    notes TEXT,
+                    opened_at TEXT NOT NULL,
+                    closed_at TEXT DEFAULT NULL
+                )
+            ''')
+
+            # Cash movements table (Egresos, Ingresos extraordinarios, Retiros)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS cash_movements (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    shift_id INTEGER REFERENCES cash_shifts(id) ON DELETE SET NULL,
+                    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    movement_type TEXT NOT NULL,
+                    category TEXT NOT NULL DEFAULT 'Operativo',
+                    concept TEXT NOT NULL,
+                    amount REAL NOT NULL,
+                    voucher_reference TEXT DEFAULT NULL,
+                    created_at TEXT NOT NULL
+                )
+            ''')
+
+            # Inventory movements table (Kardex de entradas, salidas y mermas)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS inventory_movements (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+                    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    movement_type TEXT NOT NULL,
+                    quantity INTEGER NOT NULL,
+                    previous_stock INTEGER NOT NULL DEFAULT 0,
+                    new_stock INTEGER NOT NULL DEFAULT 0,
+                    reason TEXT NOT NULL,
+                    notes TEXT,
+                    created_at TEXT NOT NULL
+                )
+            ''')
+
+
             # Run migrations for existing databases
             try:
                 cursor.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'cajero'")

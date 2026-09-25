@@ -57,6 +57,7 @@
                     </button>
                     {% if session.get('role') == 'admin' %}
                     <form action="{{ url_for('client.delete', id=client.id) }}" method="POST" style="display: inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-danger" style="padding: 0.25rem 0.5rem;" onclick="return confirm('¿Seguro que deseas eliminar este cliente?')">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -77,6 +78,7 @@
             <button class="close-btn" onclick="closeModal('addClientModal')">&times;</button>
         </div>
         <form action="{{ url_for('client.add') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="modal-grid">
                 <div class="form-group full-width">
                     <label>Nombre Completo</label>
@@ -108,6 +110,7 @@
             <button class="close-btn" onclick="closeModal('editClientModal')">&times;</button>
         </div>
         <form id="editClientForm" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="modal-grid">
                 <div class="form-group full-width">
                     <label>Nombre Completo</label>

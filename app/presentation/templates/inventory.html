@@ -97,12 +97,14 @@
                         <i class="fas fa-edit"></i>
                     </button>
                     <form action="{{ url_for('inventory.delete_product', id=product.id) }}" method="POST" style="display: inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-danger" style="padding: 0.25rem 0.5rem;" onclick="return confirm('¿Seguro que deseas desactivar este medicamento?')">
                             <i class="fas fa-trash"></i>
                         </button>
                     </form>
                     {% else %}
                     <form action="{{ url_for('inventory.reactivate_product', id=product.id) }}" method="POST" style="display: inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-success" style="padding: 0.25rem 0.5rem;" onclick="return confirm('¿Seguro que deseas reactivar este medicamento?')">
                             <i class="fas fa-check-circle"></i> Reactivar
                         </button>
@@ -123,6 +125,7 @@
             <button class="close-btn" onclick="closeModal('addModal')">&times;</button>
         </div>
         <form action="{{ url_for('inventory.add_product') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="modal-grid">
                 <div class="form-group">
                     <label>Código de Producto</label>
@@ -187,6 +190,7 @@
             <button class="close-btn" onclick="closeModal('editModal')">&times;</button>
         </div>
         <form id="editForm" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="modal-grid">
                 <div class="form-group">
                     <label>Código de Producto</label>
@@ -251,6 +255,7 @@
             <button class="close-btn" onclick="closeModal('restockModal')">&times;</button>
         </div>
         <form id="restockForm" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <p>Producto: <strong id="restockProductName"></strong></p>
             <div class="form-group" style="margin-top: 1rem;">
                 <label>Cantidad a Ingresar</label>
