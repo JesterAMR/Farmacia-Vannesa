@@ -24,4 +24,9 @@ ngrok_dir/
 htmlcov/
 temp_content.txt
 .secret_key
+
+# Logs & Backups
+logs/
+*.log
+backups/
 
