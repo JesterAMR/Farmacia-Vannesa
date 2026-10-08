@@ -1,53 +1,135 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="glass-panel" style="max-width: 600px; margin: 0 auto;">
-    <div style="text-align: center; border-bottom: 2px dashed rgba(255,255,255,0.2); padding-bottom: 2rem; margin-bottom: 2rem;">
-        <h1>⚕️ Farmacia Vannesa</h1>
-        <p>Comprobante de Venta</p>
-        <p><strong>Recibo #:</strong> {{ sale.id }}</p>
-        <p><strong>Fecha:</strong> {{ sale.date.replace('T', ' ')[:19] }}</p>
-        {% if client %}
-        <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(255,255,255,0.05); border-radius: 0.5rem; font-size: 0.9rem; text-align: left; line-height: 1.4;">
-            <strong>Cliente:</strong> {{ client.name }}<br>
-            <strong>Cédula/RUC:</strong> {{ client.identity_card }}<br>
-            {% if client.email %}<strong>Email:</strong> {{ client.email }}<br>{% endif %}
-            {% if client.phone %}<strong>Teléfono:</strong> {{ client.phone }}{% endif %}
+<div class="glass-panel" style="max-width: 720px; margin: 0 auto; padding: 2.5rem;">
+    <!-- Encabezado Institucional y Fiscal -->
+    <div style="text-align: center; border-bottom: 2px dashed rgba(255,255,255,0.2); padding-bottom: 1.5rem; margin-bottom: 1.5rem;">
+        <h1 style="color: #60a5fa; margin-bottom: 0.25rem;">⚕️ FARMACIA VANNESA S.A.</h1>
+        <p style="margin-bottom: 0.25rem; font-size: 0.95rem; color: #94a3b8;">
+            <strong>RUC:</strong> J0310000123456 | <strong>Licencia Sanitaria MINSA:</strong> LIC-MINSA-2026-FARM-088
+        </p>
+        <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.75rem;">
+            Regente Farmacéutico Responsable: Lic. Farmacéutico Acreditado | Managua, Nicaragua
+        </p>
+        <div style="background: rgba(37, 99, 235, 0.15); border: 1px solid rgba(37, 99, 235, 0.3); border-radius: 0.375rem; padding: 0.5rem; display: inline-block;">
+            <span style="color: #93c5fd; font-weight: bold; font-size: 0.9rem;">
+                FACTURA ELECTRÓNICA COMERCIAL — DGI SERIE: {{ sale.dgi_auth_number or ('FE-2026-' + '%06d'|format(sale.id)) }}
+            </span>
         </div>
-        {% else %}
-        <p><strong>Cliente:</strong> Consumidor Final</p>
-        {% endif %}
     </div>
 
-    <table style="width: 100%; margin-bottom: 2rem;">
+    <!-- Metadatos de la Venta y del Cliente -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; font-size: 0.9rem;">
+        <div style="padding: 1rem; background: rgba(255,255,255,0.04); border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.08);">
+            <p style="margin-bottom: 0.35rem;"><strong>No. Factura:</strong> #{{ "%06d"|format(sale.id) }}</p>
+            <p style="margin-bottom: 0.35rem;"><strong>Fecha de Emisión:</strong> {{ sale.date.replace('T', ' ')[:19] }}</p>
+            <p style="margin-bottom: 0;"><strong>Moneda:</strong> {{ sale.currency }} (Tasa Oficial BCN: C${{ "%.4f"|format(sale.exchange_rate) }})</p>
+        </div>
+        <div style="padding: 1rem; background: rgba(255,255,255,0.04); border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.08);">
+            {% if client %}
+            <p style="margin-bottom: 0.35rem;"><strong>Cliente:</strong> {{ client.name }}</p>
+            <p style="margin-bottom: 0.35rem;"><strong>Cédula / RUC (DGI):</strong> <code>{{ client.identity_card }}</code></p>
+            <p style="margin-bottom: 0;"><strong>Teléfono:</strong> {{ client.phone or 'N/A' }}</p>
+            {% else %}
+            <p style="margin-bottom: 0.35rem;"><strong>Cliente:</strong> Consumidor Final</p>
+            <p style="margin-bottom: 0.35rem;"><strong>RUC/Cédula:</strong> N/A</p>
+            <p style="margin-bottom: 0;"><strong>Régimen:</strong> Venta al Mostrador</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Registro de Receta Médica para Controlados (Ley 292) -->
+    {% if sale.prescription_doctor %}
+    <div style="margin-bottom: 1.5rem; padding: 0.75rem 1rem; background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; border-radius: 0.25rem; font-size: 0.85rem;">
+        <strong style="color: #fbbf24;"><i class="fas fa-prescription"></i> Disposiciones Sanitarias Ley 292 (Medicamentos Controlados):</strong><br>
+        Médico Prescriptor: <strong>{{ sale.prescription_doctor }}</strong> | Código MINSA: <strong>{{ sale.doctor_minsa_code or 'N/A' }}</strong> 
+        {% if sale.prescription_number %}| Folio Receta: <strong>{{ sale.prescription_number }}</strong>{% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Detalle de Artículos -->
+    <table style="width: 100%; margin-bottom: 1.5rem; font-size: 0.9rem;">
         <thead>
-            <tr>
-                <th>Desc.</th>
-                <th>Cant.</th>
-                <th>Precio</th>
-                <th style="text-align: right;">Subtotal</th>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.2);">
+                <th style="text-align: left; padding: 0.5rem 0;">Descripción</th>
+                <th style="text-align: left; padding: 0.5rem;">Lote / Reg. MINSA</th>
+                <th style="text-align: center; padding: 0.5rem;">Cant.</th>
+                <th style="text-align: right; padding: 0.5rem;">P. Unit (C$)</th>
+                <th style="text-align: right; padding: 0.5rem;">IVA</th>
+                <th style="text-align: right; padding: 0.5rem 0;">Subtotal (C$)</th>
             </tr>
         </thead>
         <tbody>
             {% for item in sale.items %}
-            <tr>
-                <td>{{ item.product_name }}</td>
-                <td>{{ item.quantity }}</td>
-                <td>${{ "%.2f"|format(item.price) }}</td>
-                <td style="text-align: right;">${{ "%.2f"|format(item.subtotal) }}</td>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                <td style="padding: 0.6rem 0;">
+                    <strong>{{ item.product_name }}</strong>
+                </td>
+                <td style="padding: 0.6rem; font-size: 0.8rem; color: #94a3b8;">
+                    {{ item.batch_number or 'LOT-GEN-01' }}<br>
+                    <small style="color: #64748b;">{{ item.sanitary_register or 'MINSA-REG' }}</small>
+                </td>
+                <td style="text-align: center; padding: 0.6rem;">{{ item.quantity }}</td>
+                <td style="text-align: right; padding: 0.6rem;">C${{ "%.2f"|format(item.price) }}</td>
+                <td style="text-align: right; padding: 0.6rem; font-size: 0.8rem;">
+                    {% if item.is_exempt %}
+                    <span style="color: #60a5fa;">Exento (0%)</span>
+                    {% else %}
+                    <span style="color: #f59e0b;">+15% (C${{ "%.2f"|format(item.iva_amount) }})</span>
+                    {% endif %}
+                </td>
+                <td style="text-align: right; padding: 0.6rem 0; font-weight: 600;">C${{ "%.2f"|format(item.subtotal) }}</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 
-    <div style="text-align: right; border-top: 2px dashed rgba(255,255,255,0.2); padding-top: 1rem;">
-        <h2>Total: ${{ "%.2f"|format(sale.total) }}</h2>
+    <!-- Resumen y Desglose Fiscal DGI (Ley 822) -->
+    <div style="border-top: 2px dashed rgba(255,255,255,0.2); padding-top: 1rem; display: flex; justify-content: flex-end;">
+        <div style="width: 320px; font-size: 0.9rem; line-height: 1.6;">
+            <div style="display: flex; justify-content: space-between; color: #94a3b8;">
+                <span>Subtotal Exento (Art. 153 LCT):</span>
+                <span>C${{ "%.2f"|format(sale.subtotal_exempt) }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; color: #94a3b8;">
+                <span>Subtotal Gravado (15%):</span>
+                <span>C${{ "%.2f"|format(sale.subtotal_taxable) }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; color: #f59e0b;">
+                <span>Impuesto al Valor Agregado (IVA 15%):</span>
+                <span>C${{ "%.2f"|format(sale.iva_total) }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 1.25rem; font-weight: bold; color: var(--text-color, #e2e8f0); margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 0.5rem;">
+                <span>TOTAL A PAGAR:</span>
+                <span style="color: #10b981;">C${{ "%.2f"|format(sale.total) }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.95rem; font-weight: 600; color: #60a5fa; margin-top: 0.25rem;">
+                <span>Equivalente en USD:</span>
+                <span>${{ "%.2f"|format(sale.total_usd) }}</span>
+            </div>
+        </div>
     </div>
 
-    <div style="text-align: center; margin-top: 3rem; display: flex; gap: 1rem; justify-content: center;">
-        <button class="btn" onclick="window.print()"><i class="fas fa-print"></i> Imprimir</button>
-        <a href="{{ url_for('sales.invoice_pdf', id=sale.id) }}" class="btn btn-success" style="background: var(--primary);"><i class="fas fa-file-pdf"></i> Descargar PDF</a>
-        <a href="{{ url_for('sales.index') }}" class="btn" style="background: rgba(255,255,255,0.1);">Volver</a>
+    <!-- Pie de Factura Normativo -->
+    <div style="text-align: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.75rem; color: #64748b;">
+        DOCUMENTO ELECTRÓNICO GENERADO BAJO LINEAMIENTOS DE LA DGI (LEYES N° 822 Y 292).<br>
+        Los medicamentos humanos se encuentran exentos del IVA de conformidad con el Art. 153 de la Ley de Concertación Tributaria.
+    </div>
+
+    <!-- Acciones -->
+    <div style="text-align: center; margin-top: 2rem; display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+        <button class="btn" onclick="window.print()" style="background: rgba(255,255,255,0.1);">
+            <i class="fas fa-print"></i> Imprimir
+        </button>
+        <a href="{{ url_for('sales.invoice_pdf', id=sale.id) }}" class="btn btn-primary">
+            <i class="fas fa-file-pdf"></i> Descargar PDF
+        </a>
+        <a href="{{ url_for('sales.invoice_xml', id=sale.id) }}" class="btn btn-success">
+            <i class="fas fa-file-code"></i> Descargar XML DGI
+        </a>
+        <a href="{{ url_for('sales.index') }}" class="btn" style="background: rgba(255,255,255,0.08);">
+            <i class="fas fa-arrow-left"></i> Volver al POS
+        </a>
     </div>
 </div>
 {% endblock %}

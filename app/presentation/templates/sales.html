@@ -1,73 +1,181 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div style="display: flex; gap: 2rem;">
-    <!-- Caja (Punto de Venta) -->
-    <div class="glass-panel" style="flex: 2;">
-        <h2><i class="fas fa-shopping-cart"></i> Nueva Venta</h2>
-        <div class="form-group" style="display: flex; gap: 1rem;">
-            <select id="productSelect" class="form-control" style="flex: 2;">
-                <option value="">Seleccione un producto...</option>
-                {% for product in products %}
-                <option value="{{ product.id }}" data-price="{{ product.price }}" data-name="{{ product.name }}" data-stock="{{ product.stock }}">
-                    {{ product.name }} - ${{ "%.2f"|format(product.price) }} (Stock: {{ product.stock }})
-                </option>
-                {% endfor %}
-            </select>
-            <input type="number" id="productQuantity" class="form-control" value="1" min="1" style="flex: 0.5;">
-            <button type="button" class="btn" onclick="addToCart()">Agregar</button>
+<style>
+.fiscal-summary-box {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+}
+.prescription-panel {
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-top: 1rem;
+    display: none;
+}
+</style>
+
+<div style="display: flex; gap: 2rem; flex-wrap: wrap;">
+    <!-- Caja (Punto de Venta POS - Fiscal DGI / MINSA) -->
+    <div class="glass-panel" style="flex: 2; min-width: 480px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h2><i class="fas fa-cash-register"></i> Punto de Venta (POS) — Facturación Fiscal</h2>
+            <div style="font-size: 0.85rem; color: #94a3b8; background: rgba(255,255,255,0.06); padding: 0.3rem 0.6rem; border-radius: 0.375rem;">
+                Tasa Oficial BCN: <strong>1 USD = C$ 36.62</strong>
+            </div>
         </div>
 
-        <table id="cartTable">
+        <div class="form-group" style="display: flex; gap: 1rem; align-items: flex-end;">
+            <div style="flex: 3;">
+                <label for="productSelect">Seleccionar Medicamento</label>
+                <select id="productSelect" class="form-control">
+                    <option value="">Seleccione un producto del catálogo...</option>
+                    {% for product in products %}
+                    <option value="{{ product.id }}" 
+                            data-price="{{ product.price }}" 
+                            data-name="{{ product.name }}" 
+                            data-stock="{{ product.stock }}"
+                            data-controlled="{{ 'true' if product.is_controlled else 'false' }}"
+                            data-exempt="{{ 'true' if product.is_exempt_iva else 'false' }}"
+                            data-lote="{{ product.batch_number }}"
+                            data-minsa="{{ product.sanitary_register }}">
+                        {{ product.name }} — C${{ "%.2f"|format(product.price) }} (Stock: {{ product.stock }}) 
+                        {% if product.is_controlled %}[CONTROLADO]{% endif %}
+                        {% if not product.is_exempt_iva %}[IVA 15%]{% else %}[Exento]{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="flex: 1;">
+                <label for="productQuantity">Cantidad</label>
+                <input type="number" id="productQuantity" class="form-control" value="1" min="1">
+            </div>
+            <button type="button" class="btn btn-primary" onclick="addToCart()" style="height: 42px;">
+                <i class="fas fa-plus"></i> Agregar
+            </button>
+        </div>
+
+        <table id="cartTable" style="margin-top: 1rem;">
             <thead>
                 <tr>
-                    <th>Producto</th>
+                    <th>Medicamento</th>
+                    <th>Régimen Fiscal</th>
                     <th>Cantidad</th>
-                    <th>Subtotal</th>
-                    <th>Acciones</th>
+                    <th>P. Unitario</th>
+                    <th>Subtotal (C$)</th>
+                    <th>Acción</th>
                 </tr>
             </thead>
             <tbody id="cartBody">
                 <!-- Items dinámicos -->
             </tbody>
         </table>
+
+        <!-- Panel Condicional de Receta Médica Retenida (Ley 292 - Psicotrópicos) -->
+        <div id="prescriptionPanel" class="prescription-panel">
+            <h4 style="color: #fbbf24; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fas fa-file-medical"></i> Registro de Receta Médica Obligatoria (Fármacos Controlados - Ley 292)
+            </h4>
+            <p style="font-size: 0.8rem; color: #e2e8f0; margin-bottom: 0.75rem;">
+                El carrito contiene psicotrópicos o estupefacientes. Se requiere registrar los datos del facultativo para dispensar.
+            </p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem;">
+                <div>
+                    <label style="font-size: 0.8rem;">Médico Prescriptor *</label>
+                    <input type="text" id="prescDoctor" class="form-control" placeholder="Dr. / Dra. Nombre">
+                </div>
+                <div>
+                    <label style="font-size: 0.8rem;">Código MINSA Médico *</label>
+                    <input type="text" id="prescCode" class="form-control" placeholder="Ej. MINSA-MED-8492">
+                </div>
+                <div>
+                    <label style="font-size: 0.8rem;">No. Folio Receta</label>
+                    <input type="text" id="prescNumber" class="form-control" placeholder="Ej. REC-2026-004">
+                </div>
+            </div>
+        </div>
+
+        <!-- Desglose Fiscal DGI (Ley 822) -->
+        <div class="fiscal-summary-box">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem; color: #94a3b8;">
+                <span>Subtotal Exento (Art. 153 LCT - Medicinas):</span>
+                <span>C$ <strong id="subtotalExempt">0.00</strong></span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem; color: #94a3b8;">
+                <span>Subtotal Gravado (Cosméticos / Cuidado Personal):</span>
+                <span>C$ <strong id="subtotalTaxable">0.00</strong></span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; color: #f59e0b;">
+                <span>IVA (15% DGI):</span>
+                <span>C$ <strong id="ivaAmount">0.00</strong></span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed rgba(255,255,255,0.2); padding-top: 0.75rem;">
+                <div>
+                    <span style="font-size: 1.1rem; font-weight: bold;">TOTAL A PAGAR:</span>
+                    <div style="font-size: 0.85rem; color: #60a5fa;">
+                        Equivalente en Dólares: <strong>$<span id="totalUsd">0.00</span> USD</strong>
+                    </div>
+                </div>
+                <div style="font-size: 1.6rem; font-weight: bold; color: #10b981;">
+                    C$ <span id="cartTotal">0.00</span>
+                </div>
+            </div>
+        </div>
         
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
-            <h3>Total: $<span id="cartTotal">0.00</span></h3>
-            <form id="checkoutForm" action="{{ url_for('sales.checkout') }}" method="POST" style="display: flex; gap: 0.75rem; align-items: center;">
+        <!-- Formulario de Checkout y Selección de Cliente DGI -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+            <form id="checkoutForm" action="{{ url_for('sales.checkout') }}" method="POST" style="display: flex; gap: 0.75rem; align-items: center; flex: 1; justify-content: flex-end; flex-wrap: wrap;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div style="min-width: 180px;">
-                    <select name="client_id" class="form-control" style="padding: 0.4rem; font-size: 0.85rem;">
-                        <option value="">Consumidor Final</option>
+                <input type="hidden" name="items" id="itemsInput">
+                <input type="hidden" name="currency" value="NIO">
+                <input type="hidden" name="exchange_rate" value="36.62">
+                <input type="hidden" name="prescription_doctor" id="formPrescDoctor">
+                <input type="hidden" name="doctor_minsa_code" id="formPrescCode">
+                <input type="hidden" name="prescription_number" id="formPrescNumber">
+
+                <div style="min-width: 220px;">
+                    <select name="client_id" class="form-control" style="padding: 0.45rem; font-size: 0.9rem;">
+                        <option value="">Consumidor Final (Sin RUC)</option>
                         {% for client in clients %}
-                        <option value="{{ client.id }}">{{ client.name }}</option>
+                        <option value="{{ client.id }}">{{ client.name }} ({{ client.identity_card }})</option>
                         {% endfor %}
                     </select>
                 </div>
-                <input type="hidden" name="items" id="itemsInput">
-                <button type="button" class="btn btn-success" onclick="processCheckout()">Cobrar</button>
+                <button type="button" class="btn btn-success" onclick="processCheckout()" style="padding: 0.6rem 1.25rem; font-size: 1rem;">
+                    <i class="fas fa-file-invoice"></i> Cobrar y Emitir Factura DGI
+                </button>
             </form>
         </div>
     </div>
 
-    <!-- Historial de Ventas -->
-    <div class="glass-panel" style="flex: 1; max-height: 80vh; overflow-y: auto;">
-        <h2>Últimas Ventas</h2>
-        <div style="display: flex; flex-direction: column; gap: 1rem;">
-            {% for sale in sales[:10] %}
-            <div style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 1rem; border-radius: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+    <!-- Historial de Ventas Recientes -->
+    <div class="glass-panel" style="flex: 1; min-width: 320px; max-height: 85vh; overflow-y: auto;">
+        <h2><i class="fas fa-history"></i> Facturas Emitidas</h2>
+        <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;">
+            {% for sale in sales[:12] %}
+            <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); padding: 0.9rem; border-radius: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <strong>Venta #{{ sale.id }}</strong><br>
+                    <strong>Factura #{{ "%06d"|format(sale.id) }}</strong><br>
+                    <small style="color: #60a5fa;">{{ sale.dgi_auth_number or 'FE-2026' }}</small><br>
                     <small style="color: #94a3b8;">{{ sale.date[:16].replace('T', ' ') }}</small>
                 </div>
                 <div style="text-align: right;">
-                    <strong>${{ "%.2f"|format(sale.total) }}</strong><br>
-                    <div style="display: flex; gap: 5px; justify-content: flex-end; margin-top: 5px;">
-                        <a href="{{ url_for('sales.invoice', id=sale.id) }}" class="btn" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;" title="Ver Recibo"><i class="fas fa-eye"></i></a>
-                        <a href="{{ url_for('sales.invoice_pdf', id=sale.id) }}" class="btn btn-success" style="font-size: 0.75rem; padding: 0.2rem 0.4rem; background: var(--primary);" title="Descargar PDF"><i class="fas fa-file-pdf"></i></a>
+                    <strong style="color: #10b981; font-size: 1.05rem;">C${{ "%.2f"|format(sale.total) }}</strong><br>
+                    <small style="color: #94a3b8;">${{ "%.2f"|format(sale.total_usd) }} USD</small>
+                    <div style="display: flex; gap: 4px; justify-content: flex-end; margin-top: 6px;">
+                        <a href="{{ url_for('sales.invoice', id=sale.id) }}" class="btn" style="font-size: 0.75rem; padding: 0.2rem 0.45rem;" title="Ver Factura"><i class="fas fa-eye"></i></a>
+                        <a href="{{ url_for('sales.invoice_pdf', id=sale.id) }}" class="btn btn-primary" style="font-size: 0.75rem; padding: 0.2rem 0.45rem;" title="Descargar PDF"><i class="fas fa-file-pdf"></i></a>
+                        <a href="{{ url_for('sales.invoice_xml', id=sale.id) }}" class="btn btn-success" style="font-size: 0.75rem; padding: 0.2rem 0.45rem;" title="Descargar XML DGI"><i class="fas fa-file-code"></i></a>
                     </div>
                 </div>
             </div>
+            {% else %}
+            <p style="color: #94a3b8; font-size: 0.9rem;">No se han registrado ventas hoy.</p>
             {% endfor %}
         </div>
     </div>
@@ -75,6 +183,7 @@
 
 <script>
     let cart = [];
+    const EXCHANGE_RATE = 36.62;
 
     function addToCart() {
         const select = document.getElementById('productSelect');
@@ -91,21 +200,28 @@
         const stock = parseInt(option.getAttribute('data-stock'));
         
         if (qty > stock) {
-            alert('Stock insuficiente!');
+            alert(`Stock insuficiente. Solo quedan ${stock} unidades en almacén.`);
             return;
         }
+
+        const isControlled = option.getAttribute('data-controlled') === 'true';
+        const isExempt = option.getAttribute('data-exempt') === 'true';
 
         const product = {
             product_id: parseInt(select.value),
             name: option.getAttribute('data-name'),
             price: parseFloat(option.getAttribute('data-price')),
-            quantity: qty
+            quantity: qty,
+            is_controlled: isControlled,
+            is_exempt_iva: isExempt,
+            lote: option.getAttribute('data-lote'),
+            minsa: option.getAttribute('data-minsa')
         };
 
         const existingItem = cart.find(i => i.product_id === product.product_id);
         if (existingItem) {
             if (existingItem.quantity + qty > stock) {
-                alert('Stock insuficiente!');
+                alert(`Stock insuficiente. No puede vender más de ${stock} unidades.`);
                 return;
             }
             existingItem.quantity += qty;
@@ -154,32 +270,96 @@
     function updateCartUI() {
         const tbody = document.getElementById('cartBody');
         tbody.innerHTML = '';
-        let total = 0;
+        
+        let subtotalExempt = 0;
+        let subtotalTaxable = 0;
+        let ivaAmount = 0;
+        let hasControlled = false;
 
         cart.forEach((item, index) => {
-            const subtotal = item.price * item.quantity;
-            total += subtotal;
+            const rawSubtotal = item.price * item.quantity;
+            let itemIva = 0;
+            let itemFinalTotal = rawSubtotal;
+
+            if (item.is_exempt_iva) {
+                subtotalExempt += rawSubtotal;
+            } else {
+                itemIva = rawSubtotal * 0.15;
+                subtotalTaxable += rawSubtotal;
+                ivaAmount += itemIva;
+                itemFinalTotal += itemIva;
+            }
+
+            if (item.is_controlled) {
+                hasControlled = true;
+            }
             
             tbody.innerHTML += `
                 <tr>
-                    <td>${item.name}</td>
                     <td>
-                        <input type="number" class="form-control" style="width: 80px; display: inline-block; padding: 0.25rem;" value="${item.quantity}" min="1" onchange="updateCartItemQuantity(${index}, this.value)">
+                        <strong>${item.name}</strong><br>
+                        <small style="color: #94a3b8;">Lote: ${item.lote}</small>
+                        ${item.is_controlled ? '<span style="color:#ef4444; font-size:0.75rem; font-weight:bold; margin-left:5px;">[CONTROLADO]</span>' : ''}
                     </td>
-                    <td>$${subtotal.toFixed(2)}</td>
-                    <td><button type="button" class="btn btn-danger" style="padding: 0.25rem 0.5rem;" onclick="removeCartItem(${index})"><i class="fas fa-trash"></i></button></td>
+                    <td>
+                        <span style="font-size:0.8rem; color:${item.is_exempt_iva ? '#60a5fa' : '#f59e0b'};">
+                            ${item.is_exempt_iva ? 'Exento (0% IVA)' : 'Gravado (15% IVA)'}
+                        </span>
+                    </td>
+                    <td>
+                        <input type="number" class="form-control" style="width: 75px; display: inline-block; padding: 0.25rem;" value="${item.quantity}" min="1" onchange="updateCartItemQuantity(${index}, this.value)">
+                    </td>
+                    <td>C$ ${item.price.toFixed(2)}</td>
+                    <td style="font-weight:600;">C$ ${itemFinalTotal.toFixed(2)}</td>
+                    <td>
+                        <button type="button" class="btn btn-danger" style="padding: 0.25rem 0.5rem;" onclick="removeCartItem(${index})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
                 </tr>
             `;
         });
 
-        document.getElementById('cartTotal').textContent = total.toFixed(2);
+        const totalNio = subtotalExempt + subtotalTaxable + ivaAmount;
+        const totalUsd = totalNio / EXCHANGE_RATE;
+
+        document.getElementById('subtotalExempt').textContent = subtotalExempt.toFixed(2);
+        document.getElementById('subtotalTaxable').textContent = subtotalTaxable.toFixed(2);
+        document.getElementById('ivaAmount').textContent = ivaAmount.toFixed(2);
+        document.getElementById('cartTotal').textContent = totalNio.toFixed(2);
+        document.getElementById('totalUsd').textContent = totalUsd.toFixed(2);
+
+        // Mostrar u ocultar panel de receta médica para controlados
+        const prescPanel = document.getElementById('prescriptionPanel');
+        if (hasControlled) {
+            prescPanel.style.display = 'block';
+        } else {
+            prescPanel.style.display = 'none';
+        }
     }
 
     function processCheckout() {
         if (cart.length === 0) {
-            alert('El carrito está vacío');
+            alert('El carrito de compras está vacío.');
             return;
         }
+
+        const hasControlled = cart.some(i => i.is_controlled);
+        if (hasControlled) {
+            const docName = document.getElementById('prescDoctor').value.trim();
+            const docCode = document.getElementById('prescCode').value.trim();
+            const prescNum = document.getElementById('prescNumber').value.trim();
+
+            if (!docName || !docCode) {
+                alert('ATENCIÓN (Ley 292): Es obligatorio registrar el nombre del médico prescriptor y su código MINSA para dispensar medicamentos controlados.');
+                return;
+            }
+
+            document.getElementById('formPrescDoctor').value = docName;
+            document.getElementById('formPrescCode').value = docCode;
+            document.getElementById('formPrescNumber').value = prescNum;
+        }
+
         document.getElementById('itemsInput').value = JSON.stringify(cart);
         document.getElementById('checkoutForm').submit();
     }

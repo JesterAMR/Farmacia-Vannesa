@@ -10,8 +10,12 @@ def create_client_blueprint(client_service: ClientService, audit_service: AuditS
     @bp.route('/')
     @login_required
     def index():
-        clients = client_service.get_all_clients()
-        return render_template('clients.html', clients=clients)
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+        search = request.args.get('search', '').strip()
+
+        pagination = client_service.get_paginated_clients(page=page, per_page=per_page, search=search)
+        return render_template('clients.html', clients=pagination['items'], pagination=pagination, search=search)
 
     @bp.route('/add', methods=['POST'])
     @login_required

@@ -1,5 +1,5 @@
 import sqlite3
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from app.domain.models.client import Client
 from app.application.interfaces.client_repository import ClientRepositoryInterface
 from app.infrastructure.database.sqlite_connection import SQLiteDatabase
@@ -53,6 +53,24 @@ class SQLiteClientRepository(ClientRepositoryInterface):
             cursor.execute("SELECT * FROM clients ORDER BY name ASC")
             rows = cursor.fetchall()
             return [self._row_to_client(row) for row in rows]
+
+    def get_paginated(self, page: int = 1, per_page: int = 10, search: Optional[str] = None) -> Tuple[List[Client], int]:
+        with self.db.get_connection() as conn:
+            cursor = conn.cursor()
+            where_sql = ""
+            params = []
+            if search and search.strip():
+                s = f"%{search.strip().lower()}%"
+                where_sql = " WHERE LOWER(name) LIKE ? OR LOWER(identity_card) LIKE ? OR LOWER(phone) LIKE ?"
+                params.extend([s, s, s])
+
+            cursor.execute(f"SELECT COUNT(*) FROM clients{where_sql}", params)
+            total = cursor.fetchone()[0]
+
+            offset = max(0, (page - 1) * per_page)
+            cursor.execute(f"SELECT * FROM clients{where_sql} ORDER BY name ASC LIMIT ? OFFSET ?", params + [per_page, offset])
+            rows = cursor.fetchall()
+            return [self._row_to_client(row) for row in rows], total
 
     def update(self, client: Client) -> Client:
         with self.db.get_connection() as conn:

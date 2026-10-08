@@ -24,7 +24,7 @@ class SQLiteDatabase:
                 )
             ''')
             
-            # Products table (Advanced schema)
+            # Products table (Advanced schema con Regulación MINSA y DGI)
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS products (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,20 +39,36 @@ class SQLiteDatabase:
                     dose TEXT NOT NULL,
                     cost_price REAL NOT NULL,
                     sale_price REAL NOT NULL,
+                    sanitary_register TEXT DEFAULT 'MINSA-REG-2024-001',
+                    batch_number TEXT DEFAULT 'LOT-GEN-01',
+                    is_controlled INTEGER DEFAULT 0,
+                    is_exempt_iva INTEGER DEFAULT 1,
                     is_active INTEGER DEFAULT 1
                 )
             ''')
             
-            # Sales table
+            # Sales table (Con desglose fiscal DGI Ley 822 y receta MINSA Ley 292)
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS sales (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     total REAL NOT NULL,
-                    date TEXT NOT NULL
+                    date TEXT NOT NULL,
+                    client_id INTEGER REFERENCES clients(id),
+                    subtotal_exempt REAL DEFAULT 0.0,
+                    subtotal_taxable REAL DEFAULT 0.0,
+                    iva_total REAL DEFAULT 0.0,
+                    currency TEXT DEFAULT 'NIO',
+                    exchange_rate REAL DEFAULT 36.62,
+                    total_usd REAL DEFAULT 0.0,
+                    prescription_doctor TEXT,
+                    doctor_minsa_code TEXT,
+                    prescription_number TEXT,
+                    fiscal_xml TEXT,
+                    dgi_auth_number TEXT
                 )
             ''')
             
-            # Sale Items table
+            # Sale Items table (Con trazabilidad de lote e IVA 15% / Exento)
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS sale_items (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -61,6 +77,10 @@ class SQLiteDatabase:
                     quantity INTEGER NOT NULL,
                     price REAL NOT NULL,
                     subtotal REAL NOT NULL,
+                    is_exempt INTEGER DEFAULT 1,
+                    iva_rate REAL DEFAULT 0.0,
+                    iva_amount REAL DEFAULT 0.0,
+                    batch_number TEXT,
                     FOREIGN KEY (sale_id) REFERENCES sales (id),
                     FOREIGN KEY (product_id) REFERENCES products (id)
                 )
@@ -145,20 +165,61 @@ class SQLiteDatabase:
             try:
                 cursor.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'cajero'")
             except sqlite3.OperationalError:
-                # Column already exists
                 pass
 
             try:
                 cursor.execute("ALTER TABLE sales ADD COLUMN client_id INTEGER DEFAULT NULL REFERENCES clients(id)")
             except sqlite3.OperationalError:
-                # Column already exists
                 pass
 
             try:
                 cursor.execute("ALTER TABLE products ADD COLUMN is_active INTEGER DEFAULT 1")
             except sqlite3.OperationalError:
-                # Column already exists
                 pass
+
+            # Migraciones de Regulación Sanitaria MINSA y Fiscal DGI
+            product_new_cols = [
+                ("sanitary_register", "TEXT DEFAULT 'MINSA-REG-2024-001'"),
+                ("batch_number", "TEXT DEFAULT 'LOT-GEN-01'"),
+                ("is_controlled", "INTEGER DEFAULT 0"),
+                ("is_exempt_iva", "INTEGER DEFAULT 1")
+            ]
+            for col_name, col_def in product_new_cols:
+                try:
+                    cursor.execute(f"ALTER TABLE products ADD COLUMN {col_name} {col_def}")
+                except sqlite3.OperationalError:
+                    pass
+
+            sales_new_cols = [
+                ("subtotal_exempt", "REAL DEFAULT 0.0"),
+                ("subtotal_taxable", "REAL DEFAULT 0.0"),
+                ("iva_total", "REAL DEFAULT 0.0"),
+                ("currency", "TEXT DEFAULT 'NIO'"),
+                ("exchange_rate", "REAL DEFAULT 36.62"),
+                ("total_usd", "REAL DEFAULT 0.0"),
+                ("prescription_doctor", "TEXT DEFAULT NULL"),
+                ("doctor_minsa_code", "TEXT DEFAULT NULL"),
+                ("prescription_number", "TEXT DEFAULT NULL"),
+                ("fiscal_xml", "TEXT DEFAULT NULL"),
+                ("dgi_auth_number", "TEXT DEFAULT NULL")
+            ]
+            for col_name, col_def in sales_new_cols:
+                try:
+                    cursor.execute(f"ALTER TABLE sales ADD COLUMN {col_name} {col_def}")
+                except sqlite3.OperationalError:
+                    pass
+
+            sale_items_new_cols = [
+                ("is_exempt", "INTEGER DEFAULT 1"),
+                ("iva_rate", "REAL DEFAULT 0.0"),
+                ("iva_amount", "REAL DEFAULT 0.0"),
+                ("batch_number", "TEXT DEFAULT NULL")
+            ]
+            for col_name, col_def in sale_items_new_cols:
+                try:
+                    cursor.execute(f"ALTER TABLE sale_items ADD COLUMN {col_name} {col_def}")
+                except sqlite3.OperationalError:
+                    pass
 
             # Enforce unique product code constraint at database level
             try:
@@ -182,6 +243,44 @@ class SQLiteDatabase:
                     FOR EACH ROW 
                     BEGIN 
                         SELECT CASE WHEN NEW.quantity <= 0 THEN RAISE(ABORT, 'La cantidad vendida debe ser mayor a 0.') END; 
+                    END;
+                """)
+            except sqlite3.OperationalError:
+                pass
+
+            # Enforce non-negative stock and positive prices at database level (Validaciones estrictas)
+            try:
+                cursor.execute("""
+                    CREATE TRIGGER IF NOT EXISTS check_product_constraints_insert
+                    BEFORE INSERT ON products
+                    FOR EACH ROW
+                    BEGIN
+                        SELECT CASE WHEN NEW.stock < 0 THEN RAISE(ABORT, 'El stock del producto no puede ser negativo.') END;
+                        SELECT CASE WHEN NEW.sale_price <= 0 THEN RAISE(ABORT, 'El precio de venta debe ser estrictamente mayor a 0.') END;
+                        SELECT CASE WHEN NEW.cost_price <= 0 THEN RAISE(ABORT, 'El costo del producto debe ser estrictamente mayor a 0.') END;
+                    END;
+                """)
+                cursor.execute("""
+                    CREATE TRIGGER IF NOT EXISTS check_product_constraints_update
+                    BEFORE UPDATE ON products
+                    FOR EACH ROW
+                    BEGIN
+                        SELECT CASE WHEN NEW.stock < 0 THEN RAISE(ABORT, 'El stock del producto no puede ser negativo.') END;
+                        SELECT CASE WHEN NEW.sale_price <= 0 THEN RAISE(ABORT, 'El precio de venta debe ser estrictamente mayor a 0.') END;
+                        SELECT CASE WHEN NEW.cost_price <= 0 THEN RAISE(ABORT, 'El costo del producto debe ser estrictamente mayor a 0.') END;
+                    END;
+                """)
+            except sqlite3.OperationalError:
+                pass
+
+            # Enforce valid client identity card at database level
+            try:
+                cursor.execute("""
+                    CREATE TRIGGER IF NOT EXISTS check_client_identity_card
+                    BEFORE INSERT ON clients
+                    FOR EACH ROW
+                    BEGIN
+                        SELECT CASE WHEN LENGTH(TRIM(NEW.identity_card)) < 3 THEN RAISE(ABORT, 'La Cédula o RUC del cliente debe ser válida.') END;
                     END;
                 """)
             except sqlite3.OperationalError:

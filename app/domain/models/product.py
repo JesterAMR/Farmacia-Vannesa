@@ -20,6 +20,14 @@ class Product:
     cost_price: float
     sale_price: float
     
+    # Regulación Sanitaria MINSA (Ley 292 / Decreto 19-99)
+    sanitary_register: str = "MINSA-REG-2024-001" # Registro Sanitario oficial MINSA (Vigencia 5 años)
+    batch_number: str = "LOT-GEN-01"            # Número de lote de fabricación farmacéutica
+    is_controlled: bool = False                   # True = Estupefaciente / Psicotrópico (Requiere Receta Médica Retenida)
+    
+    # Regulación Fiscal DGI (Ley 822 - LCT / Art. 153)
+    is_exempt_iva: bool = True                    # True = Exento de IVA (Medicamento humano), False = Gravado con 15% IVA
+    
     is_active: bool = True
     id: Optional[int] = None
 

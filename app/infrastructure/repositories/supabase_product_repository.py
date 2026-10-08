@@ -57,9 +57,61 @@ class SupabaseProductRepository(ProductRepositoryInterface):
                 dose=row.get('dose', ''),
                 cost_price=float(row.get('cost_price') or 0.0),
                 sale_price=float(row.get('sale_price') or 0.0),
-                is_active=is_active
+                is_active=is_active,
+                sanitary_register=row.get('sanitary_register') or 'REG-MINSA-PENDIENTE',
+                batch_number=row.get('batch_number') or 'LOTE-DEFAULT',
+                is_controlled=bool(row.get('is_controlled', False)),
+                is_exempt_iva=bool(row.get('is_exempt_iva', True))
             ))
         return products
+
+    def get_paginated(self, page: int = 1, per_page: int = 10, search: Optional[str] = None, include_inactive: bool = False):
+        try:
+            query = self.db.table('products').select('*', count='exact')
+            if not include_inactive:
+                query = query.eq('is_active', True)
+            if search:
+                s = search.strip()
+                query = query.or_(f"name.ilike.%{s}%,product_code.ilike.%{s}%,generic_name.ilike.%{s}%")
+            
+            start = (page - 1) * per_page
+            end = start + per_page - 1
+            response = query.range(start, end).execute()
+            
+            products = []
+            for row in response.data or []:
+                raw_active = row.get('is_active')
+                is_active = True if raw_active is None else bool(raw_active)
+                products.append(Product(
+                    id=row.get('id'),
+                    name=row.get('name', 'Sin Nombre'),
+                    generic_name=row.get('generic_name', ''),
+                    product_code=row.get('product_code', ''),
+                    description=row.get('description', ''),
+                    stock=int(row.get('stock') or 0),
+                    presentation=row.get('presentation', ''),
+                    laboratory=row.get('laboratory', ''),
+                    expiration_date=row.get('expiration_date', ''),
+                    dose=row.get('dose', ''),
+                    cost_price=float(row.get('cost_price') or 0.0),
+                    sale_price=float(row.get('sale_price') or 0.0),
+                    is_active=is_active,
+                    sanitary_register=row.get('sanitary_register') or 'REG-MINSA-PENDIENTE',
+                    batch_number=row.get('batch_number') or 'LOTE-DEFAULT',
+                    is_controlled=bool(row.get('is_controlled', False)),
+                    is_exempt_iva=bool(row.get('is_exempt_iva', True))
+                ))
+            total = response.count if response.count is not None else len(products)
+            return products, total
+        except Exception as e:
+            logger.warning(f"[SupabaseProductRepository] Fallback get_paginated: {e}")
+            all_prods = self.get_all(include_inactive=include_inactive)
+            if search:
+                s = search.lower().strip()
+                all_prods = [p for p in all_prods if s in p.name.lower() or s in p.product_code.lower() or s in (p.generic_name or '').lower()]
+            total = len(all_prods)
+            st = (page - 1) * per_page
+            return all_prods[st:st + per_page], total
 
     def get_by_id(self, product_id: int) -> Optional[Product]:
         try:
@@ -83,7 +135,11 @@ class SupabaseProductRepository(ProductRepositoryInterface):
                 dose=row.get('dose', ''),
                 cost_price=float(row.get('cost_price') or 0.0),
                 sale_price=float(row.get('sale_price') or 0.0),
-                is_active=is_active
+                is_active=is_active,
+                sanitary_register=row.get('sanitary_register') or 'REG-MINSA-PENDIENTE',
+                batch_number=row.get('batch_number') or 'LOTE-DEFAULT',
+                is_controlled=bool(row.get('is_controlled', False)),
+                is_exempt_iva=bool(row.get('is_exempt_iva', True))
             )
         except Exception as e:
             logging.error(f"[SupabaseProductRepository] Error get_by_id ({product_id}): {e}")
@@ -113,7 +169,11 @@ class SupabaseProductRepository(ProductRepositoryInterface):
                 dose=row.get('dose', ''),
                 cost_price=float(row.get('cost_price') or 0.0),
                 sale_price=float(row.get('sale_price') or 0.0),
-                is_active=is_active
+                is_active=is_active,
+                sanitary_register=row.get('sanitary_register') or 'REG-MINSA-PENDIENTE',
+                batch_number=row.get('batch_number') or 'LOTE-DEFAULT',
+                is_controlled=bool(row.get('is_controlled', False)),
+                is_exempt_iva=bool(row.get('is_exempt_iva', True))
             )
         except Exception as e:
             logging.error(f"[SupabaseProductRepository] Error get_by_code ({product_code}): {e}")
@@ -132,7 +192,11 @@ class SupabaseProductRepository(ProductRepositoryInterface):
             "dose": product.dose,
             "cost_price": product.cost_price,
             "sale_price": product.sale_price,
-            "is_active": product.is_active
+            "is_active": product.is_active,
+            "sanitary_register": product.sanitary_register,
+            "batch_number": product.batch_number,
+            "is_controlled": product.is_controlled,
+            "is_exempt_iva": product.is_exempt_iva
         }
         if product.id is not None:
             data["id"] = product.id
@@ -140,8 +204,10 @@ class SupabaseProductRepository(ProductRepositoryInterface):
         try:
             response = self.db.table('products').insert(data).execute()
         except Exception as e:
-            logging.warning(f"[SupabaseProductRepository] Retrying insert without is_active: {e}")
-            data.pop("is_active", None)
+            logging.warning(f"[SupabaseProductRepository] Retrying insert with legacy payload: {e}")
+            # Si faltan columnas MINSA/DGI en Supabase, reintentar sin ellas de forma segura
+            for k in ["sanitary_register", "batch_number", "is_controlled", "is_exempt_iva", "is_active"]:
+                data.pop(k, None)
             response = self.db.table('products').insert(data).execute()
 
         if response.data:
@@ -161,13 +227,18 @@ class SupabaseProductRepository(ProductRepositoryInterface):
             "dose": product.dose,
             "cost_price": product.cost_price,
             "sale_price": product.sale_price,
-            "is_active": product.is_active
+            "is_active": product.is_active,
+            "sanitary_register": product.sanitary_register,
+            "batch_number": product.batch_number,
+            "is_controlled": product.is_controlled,
+            "is_exempt_iva": product.is_exempt_iva
         }
         try:
             self.db.table('products').update(data).eq('id', product.id).execute()
         except Exception as e:
-            logging.warning(f"[SupabaseProductRepository] Retrying update without is_active: {e}")
-            data.pop("is_active", None)
+            logging.warning(f"[SupabaseProductRepository] Retrying update with legacy payload: {e}")
+            for k in ["sanitary_register", "batch_number", "is_controlled", "is_exempt_iva", "is_active"]:
+                data.pop(k, None)
             self.db.table('products').update(data).eq('id', product.id).execute()
 
         return product

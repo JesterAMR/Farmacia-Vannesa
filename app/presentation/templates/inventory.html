@@ -10,14 +10,63 @@
 .full-width {
     grid-column: 1 / -1;
 }
+.badge-minsa {
+    display: inline-block;
+    padding: 0.15rem 0.45rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    border-radius: 0.25rem;
+}
+.badge-controlled {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+.badge-free {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+.badge-iva-exempt {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+.badge-iva-15 {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+.pagination-btn {
+    padding: 0.4rem 0.8rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-color, #e2e8f0);
+    background: rgba(255, 255, 255, 0.05);
+    transition: all 0.2s;
+}
+.pagination-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+.pagination-btn.active {
+    background: var(--primary, #3b82f6);
+    color: white;
+    font-weight: bold;
+    border-color: var(--primary, #3b82f6);
+}
 </style>
 
 <div class="glass-panel" style="display: flex; justify-content: space-between; align-items: center;">
     <div>
-        <h1>Inventario de Medicamentos</h1>
-        <p>Gestión avanzada de productos farmacéuticos</p>
+        <h1>Inventario Farmacéutico</h1>
+        <p>Control de medicamentos conforme a la <strong>Ley 292 (MINSA)</strong> y <strong>Ley 822 (DGI)</strong></p>
     </div>
-    <div style="display: flex; gap: 1rem;">
+    <div style="display: flex; gap: 1rem; align-items: center;">
         <a href="{{ url_for('dashboard.monthly_cutoff') }}" class="btn" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
             <i class="fas fa-chart-pie"></i> Corte Mensual
         </a>
@@ -28,23 +77,31 @@
 </div>
 
 <div class="glass-panel" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin-bottom: 2rem; padding: 1.5rem;">
-    <div class="form-group" style="flex: 2; margin-bottom: 0; min-width: 250px;">
-        <label for="searchInput" style="margin-bottom: 0.25rem;">Buscar Medicamento</label>
-        <input type="text" id="searchInput" class="form-control" placeholder="Buscar por nombre, genérico o código..." onkeyup="filterInventory()">
-    </div>
-    <div class="form-group" style="flex: 1; margin-bottom: 0; min-width: 180px;">
-        <label for="labSelect" style="margin-bottom: 0.25rem;">Filtrar por Laboratorio</label>
-        <select id="labSelect" class="form-control" onchange="filterInventory()">
-            <option value="">Todos los laboratorios</option>
-        </select>
-    </div>
-    <div style="display: flex; align-items: center; margin-top: 1.25rem;">
+    <form method="GET" action="{{ url_for('inventory.list_products') }}" style="display: flex; gap: 1rem; flex: 1; flex-wrap: wrap; align-items: flex-end;">
+        <input type="hidden" name="show_inactive" value="{{ 'true' if show_inactive else 'false' }}">
+        <div class="form-group" style="flex: 2; margin-bottom: 0; min-width: 250px;">
+            <label for="searchInput" style="margin-bottom: 0.25rem;">Buscar Medicamento</label>
+            <input type="text" id="searchInput" name="search" value="{{ search or '' }}" class="form-control" placeholder="Buscar por nombre, código, lote o Reg. MINSA...">
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-search"></i> Buscar
+            </button>
+            {% if search %}
+            <a href="{{ url_for('inventory.list_products', show_inactive='true' if show_inactive else 'false') }}" class="btn" style="background: rgba(255,255,255,0.1);">
+                <i class="fas fa-times"></i> Limpiar
+            </a>
+            {% endif %}
+        </div>
+    </form>
+    
+    <div style="display: flex; align-items: center; margin-top: auto;">
         {% if show_inactive %}
-        <a href="{{ url_for('inventory.list_products', show_inactive='false') }}" class="btn btn-danger" style="display: flex; align-items: center; gap: 0.5rem; text-decoration: none;">
+        <a href="{{ url_for('inventory.list_products', show_inactive='false', search=search) }}" class="btn btn-danger" style="display: flex; align-items: center; gap: 0.5rem; text-decoration: none;">
             <i class="fas fa-eye-slash"></i> Ocultar Inactivos
         </a>
         {% else %}
-        <a href="{{ url_for('inventory.list_products', show_inactive='true') }}" class="btn" style="background: var(--warning); color: #0f172a; display: flex; align-items: center; gap: 0.5rem; text-decoration: none;">
+        <a href="{{ url_for('inventory.list_products', show_inactive='true', search=search) }}" class="btn" style="background: var(--warning, #f59e0b); color: #0f172a; display: flex; align-items: center; gap: 0.5rem; text-decoration: none;">
             <i class="fas fa-eye"></i> Mostrar Inactivos
         </a>
         {% endif %}
@@ -52,14 +109,15 @@
 </div>
 
 <div class="glass-panel" style="overflow-x: auto;">
-    <table style="min-width: 1000px;">
+    <table style="min-width: 1100px;">
         <thead>
             <tr>
                 <th>Código</th>
                 <th>Nombre Comercial</th>
-                <th>Genérico</th>
-                <th>Presentación</th>
-                <th>Laboratorio</th>
+                <th>Genérico y Dosis</th>
+                <th>Reg. MINSA / Lote</th>
+                <th>Clasificación</th>
+                <th>Régimen Fiscal</th>
                 <th>Stock</th>
                 <th>Vencimiento</th>
                 <th>P. Costo</th>
@@ -69,80 +127,153 @@
         </thead>
         <tbody>
             {% for product in products %}
-            <tr class="product-row" data-name="{{ product.name|lower }}" data-generic="{{ product.generic_name|lower }}" data-code="{{ product.product_code|lower }}" data-lab="{{ product.laboratory }}">
-                <td>{{ product.product_code }}</td>
+            <tr class="product-row">
+                <td><code>{{ product.product_code }}</code></td>
                 <td>
                     <strong>{{ product.name }}</strong>
                     {% if not product.is_active %}
                     <span style="padding: 0.1rem 0.3rem; font-size: 0.75rem; border-radius: 0.25rem; font-weight: bold; background: rgba(239, 68, 68, 0.2); color: var(--danger); margin-left: 5px;">INACTIVO</span>
                     {% endif %}
+                    <br><small style="color: #64748b;">Lab: {{ product.laboratory }} ({{ product.presentation }})</small>
                 </td>
-                <td>{{ product.generic_name }}<br><small style="color: #94a3b8;">{{ product.dose }}</small></td>
-                <td>{{ product.presentation }}</td>
-                <td>{{ product.laboratory }}</td>
                 <td>
-                    <span style="color: {{ 'var(--danger)' if product.stock < 10 else 'inherit' }}; font-weight: bold;">
+                    {{ product.generic_name }}<br>
+                    <small style="color: #94a3b8; font-weight: 500;">{{ product.dose }}</small>
+                </td>
+                <td>
+                    <span style="font-size: 0.8rem; font-family: monospace;">{{ product.sanitary_register }}</span><br>
+                    <small style="color: #cbd5e1;">Lote: <strong>{{ product.batch_number }}</strong></small>
+                </td>
+                <td>
+                    {% if product.is_controlled %}
+                    <span class="badge-minsa badge-controlled" title="Psicotrópico o Estupefaciente - Venta con Receta Retenida">
+                        <i class="fas fa-prescription"></i> CONTROLADO
+                    </span>
+                    {% else %}
+                    <span class="badge-minsa badge-free">
+                        Venta Libre
+                    </span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if product.is_exempt_iva %}
+                    <span class="badge-minsa badge-iva-exempt" title="Exento de IVA conforme al Art. 153 de la Ley 822">
+                        Exento (0% IVA)
+                    </span>
+                    {% else %}
+                    <span class="badge-minsa badge-iva-15" title="Gravado con 15% de IVA DGI">
+                        Gravado (15% IVA)
+                    </span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span style="color: {{ 'var(--danger)' if product.stock < 10 else 'inherit' }}; font-weight: bold; font-size: 1rem;">
                         {{ product.stock }}
                     </span>
                 </td>
-                <td>{{ product.expiration_date }}</td>
-                <td>${{ "%.2f"|format(product.cost_price) }}</td>
-                <td style="color: var(--success); font-weight: bold;">${{ "%.2f"|format(product.sale_price) }}</td>
                 <td>
-                    {% if product.is_active %}
-                    <button class="btn" style="padding: 0.25rem 0.5rem; background: var(--warning); margin-right: 0.25rem;" onclick="openRestockModal({{ product.id }}, '{{ product.name|replace("'", "\\'") }}')" title="Reabastecer">
-                        <i class="fas fa-box-open"></i>
-                    </button>
-                    <button class="btn" style="padding: 0.25rem 0.5rem; margin-right: 0.25rem;" onclick="openEditModal({{ product.id }}, '{{ product.name|replace("'", "\\'") }}', '{{ product.generic_name|replace("'", "\\'") }}', '{{ product.product_code }}', {{ product.stock }}, '{{ product.presentation }}', '{{ product.laboratory|replace("'", "\\'") }}', '{{ product.expiration_date }}', '{{ product.dose }}', {{ product.cost_price }}, {{ product.sale_price }}, '{{ product.description|replace("'", "\\'") }}')" title="Editar">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <form action="{{ url_for('inventory.delete_product', id=product.id) }}" method="POST" style="display: inline;">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-danger" style="padding: 0.25rem 0.5rem;" onclick="return confirm('¿Seguro que deseas desactivar este medicamento?')">
-                            <i class="fas fa-trash"></i>
+                    <span style="font-size: 0.85rem;">{{ product.expiration_date }}</span>
+                </td>
+                <td>C${{ "%.2f"|format(product.cost_price) }}</td>
+                <td style="color: var(--success, #10b981); font-weight: bold; font-size: 1rem;">C${{ "%.2f"|format(product.sale_price) }}</td>
+                <td>
+                    <div style="display: flex; gap: 0.25rem;">
+                        {% if product.is_active %}
+                        <button class="btn" style="padding: 0.25rem 0.5rem; background: var(--warning, #f59e0b); color: #0f172a;" onclick="openRestockModal({{ product.id }}, '{{ product.name|replace("'", "\\'") }}')" title="Reabastecer Stock">
+                            <i class="fas fa-box-open"></i>
                         </button>
-                    </form>
-                    {% else %}
-                    <form action="{{ url_for('inventory.reactivate_product', id=product.id) }}" method="POST" style="display: inline;">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-success" style="padding: 0.25rem 0.5rem;" onclick="return confirm('¿Seguro que deseas reactivar este medicamento?')">
-                            <i class="fas fa-check-circle"></i> Reactivar
+                        <button class="btn btn-primary" style="padding: 0.25rem 0.5rem;" onclick="openEditModal({{ product.id }}, '{{ product.name|replace("'", "\\'") }}', '{{ product.generic_name|replace("'", "\\'") }}', '{{ product.product_code }}', {{ product.stock }}, '{{ product.presentation }}', '{{ product.laboratory|replace("'", "\\'") }}', '{{ product.expiration_date }}', '{{ product.dose }}', {{ product.cost_price }}, {{ product.sale_price }}, '{{ product.description|replace("'", "\\'") }}', '{{ product.sanitary_register }}', '{{ product.batch_number }}', {{ 'true' if product.is_controlled else 'false' }}, {{ 'true' if product.is_exempt_iva else 'false' }})" title="Editar">
+                            <i class="fas fa-edit"></i>
                         </button>
-                    </form>
-                    {% endif %}
+                        <form action="{{ url_for('inventory.delete_product', id=product.id) }}" method="POST" style="display: inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-danger" style="padding: 0.25rem 0.5rem;" onclick="return confirm('¿Seguro que deseas desactivar este medicamento?')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                        {% else %}
+                        <form action="{{ url_for('inventory.reactivate_product', id=product.id) }}" method="POST" style="display: inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-success" style="padding: 0.25rem 0.5rem;" onclick="return confirm('¿Seguro que deseas reactivar este medicamento?')">
+                                <i class="fas fa-check-circle"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="11" style="text-align: center; padding: 2rem; color: #94a3b8;">
+                    No se encontraron medicamentos registrados con los criterios seleccionados.
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+
+    <!-- Control de Paginación Numérica -->
+    {% if pagination and pagination.total_pages > 1 %}
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; flex-wrap: wrap; gap: 1rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
+        <div style="color: #94a3b8; font-size: 0.875rem;">
+            Página <strong>{{ pagination.page }}</strong> de <strong>{{ pagination.total_pages }}</strong> 
+            (Total de <strong>{{ pagination.total }}</strong> medicamentos registrados)
+        </div>
+        <div style="display: flex; gap: 0.35rem; align-items: center;">
+            {% if pagination.has_prev %}
+            <a href="{{ url_for('inventory.list_products', page=pagination.prev_page, search=search, show_inactive=show_inactive) }}" class="pagination-btn">
+                <i class="fas fa-chevron-left"></i> Anterior
+            </a>
+            {% endif %}
+
+            {% for p in range(1, pagination.total_pages + 1) %}
+                {% if p == pagination.page %}
+                <span class="pagination-btn active">{{ p }}</span>
+                {% elif p <= 3 or p >= pagination.total_pages - 2 or (p >= pagination.page - 1 and p <= pagination.page + 1) %}
+                <a href="{{ url_for('inventory.list_products', page=p, search=search, show_inactive=show_inactive) }}" class="pagination-btn">
+                    {{ p }}
+                </a>
+                {% elif p == 4 or p == pagination.total_pages - 3 %}
+                <span style="color: #64748b; padding: 0 0.25rem;">...</span>
+                {% endif %}
+            {% endfor %}
+
+            {% if pagination.has_next %}
+            <a href="{{ url_for('inventory.list_products', page=pagination.next_page, search=search, show_inactive=show_inactive) }}" class="pagination-btn">
+                Siguiente <i class="fas fa-chevron-right"></i>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Modal Agregar -->
 <div id="addModal" class="modal">
-    <div class="modal-content" style="max-width: 700px;">
+    <div class="modal-content" style="max-width: 750px;">
         <div class="modal-header">
-            <h3>Registro de Nuevo Medicamento</h3>
+            <h3>Registro de Nuevo Medicamento (Ley 292 / Ley 822)</h3>
             <button class="close-btn" onclick="closeModal('addModal')">&times;</button>
         </div>
         <form action="{{ url_for('inventory.add_product') }}" method="POST">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="modal-grid">
                 <div class="form-group">
-                    <label>Código de Producto</label>
-                    <input type="text" name="product_code" class="form-control" required>
+                    <label>Código de Barras / SKU</label>
+                    <input type="text" name="product_code" class="form-control" placeholder="Ej. MED-00123" required>
                 </div>
                 <div class="form-group">
                     <label>Nombre Comercial</label>
-                    <input type="text" name="name" class="form-control" required>
+                    <input type="text" name="name" class="form-control" placeholder="Ej. Amoxicilina 500mg" required>
                 </div>
                 
                 <div class="form-group">
-                    <label>Nombre Genérico</label>
-                    <input type="text" name="generic_name" class="form-control" required>
+                    <label>Principio Activo (Genérico)</label>
+                    <input type="text" name="generic_name" class="form-control" placeholder="Ej. Amoxicilina Trihidrato" required>
                 </div>
                 <div class="form-group">
-                    <label>Laboratorio</label>
-                    <input type="text" name="laboratory" class="form-control" required>
+                    <label>Laboratorio Fabricante</label>
+                    <input type="text" name="laboratory" class="form-control" placeholder="Ej. Bayer, MK, Genfar" required>
                 </div>
 
                 <div class="form-group">
@@ -150,43 +281,70 @@
                     <input type="text" name="presentation" placeholder="Ej. Caja 20 Tabletas" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label>Dosis</label>
+                    <label>Concentración / Dosis</label>
                     <input type="text" name="dose" placeholder="Ej. 500mg" class="form-control" required>
                 </div>
 
                 <div class="form-group">
-                    <label>Fecha de Vencimiento (Caducidad)</label>
+                    <label>Registro Sanitario MINSA (Ley 292)</label>
+                    <input type="text" name="sanitary_register" class="form-control" placeholder="Ej. MINSA-REG-2024-00421" value="MINSA-REG-2024-001" required>
+                </div>
+                <div class="form-group">
+                    <label>Número de Lote Farmacéutico</label>
+                    <input type="text" name="batch_number" class="form-control" placeholder="Ej. LOT-2026-X88" value="LOT-GEN-01" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Fecha de Vencimiento</label>
                     <input type="date" name="expiration_date" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label>Cantidad (Stock)</label>
-                    <input type="number" name="stock" class="form-control" required>
+                    <label>Cantidad Inicial (Stock)</label>
+                    <input type="number" name="stock" class="form-control" min="0" required>
                 </div>
 
                 <div class="form-group">
-                    <label>Precio de Costo</label>
-                    <input type="number" step="0.01" name="cost_price" class="form-control" required>
+                    <label>Precio de Costo (C$)</label>
+                    <input type="number" step="0.01" min="0.01" name="cost_price" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label>Precio de Venta (Público)</label>
-                    <input type="number" step="0.01" name="sale_price" class="form-control" required>
+                    <label>Precio de Venta al Público (C$)</label>
+                    <input type="number" step="0.01" min="0.01" name="sale_price" class="form-control" required>
+                </div>
+
+                <!-- Opciones Regulatorias Especiales -->
+                <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; background: rgba(255,255,255,0.05); padding: 0.75rem; border-radius: 0.375rem;">
+                    <input type="checkbox" id="add_is_controlled" name="is_controlled">
+                    <label for="add_is_controlled" style="margin-bottom: 0; cursor: pointer;">
+                        <strong>Fármaco Controlado (Psicotrópico)</strong><br>
+                        <small style="color: #94a3b8;">Requiere Receta Médica Retenida y datos del facultativo</small>
+                    </label>
+                </div>
+                <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; background: rgba(255,255,255,0.05); padding: 0.75rem; border-radius: 0.375rem;">
+                    <input type="checkbox" id="add_is_exempt" name="is_exempt_iva" checked>
+                    <label for="add_is_exempt" style="margin-bottom: 0; cursor: pointer;">
+                        <strong>Exento de IVA (Art. 153 Ley 822)</strong><br>
+                        <small style="color: #94a3b8;">Medicamentos humanos exentos del 15% IVA</small>
+                    </label>
                 </div>
 
                 <div class="form-group full-width">
-                    <label>Descripción / Indicaciones Adicionales</label>
-                    <textarea name="description" class="form-control"></textarea>
+                    <label>Descripción / Indicaciones</label>
+                    <textarea name="description" class="form-control" rows="2"></textarea>
                 </div>
             </div>
-            <button type="submit" class="btn btn-success" style="width: 100%; margin-top: 1rem;">Agregar Medicamento</button>
+            <button type="submit" class="btn btn-success" style="width: 100%; margin-top: 1rem;">
+                <i class="fas fa-save"></i> Guardar Medicamento
+            </button>
         </form>
     </div>
 </div>
 
 <!-- Modal Editar -->
 <div id="editModal" class="modal">
-    <div class="modal-content" style="max-width: 700px;">
+    <div class="modal-content" style="max-width: 750px;">
         <div class="modal-header">
-            <h3>Actualizar Medicamento</h3>
+            <h3>Actualizar Medicamento y Normativa</h3>
             <button class="close-btn" onclick="closeModal('editModal')">&times;</button>
         </div>
         <form id="editForm" method="POST">
@@ -202,7 +360,7 @@
                 </div>
                 
                 <div class="form-group">
-                    <label>Nombre Genérico</label>
+                    <label>Principio Activo (Genérico)</label>
                     <input type="text" name="generic_name" id="editGeneric" class="form-control" required>
                 </div>
                 <div class="form-group">
@@ -220,29 +378,53 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Fecha de Vencimiento (Caducidad)</label>
-                    <input type="date" name="expiration_date" id="editExp" class="form-control" required>
+                    <label>Registro Sanitario MINSA</label>
+                    <input type="text" name="sanitary_register" id="editSanitary" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label>Cantidad (Stock)</label>
-                    <input type="number" name="stock" id="editStock" class="form-control" required>
+                    <label>Número de Lote</label>
+                    <input type="text" name="batch_number" id="editBatch" class="form-control" required>
                 </div>
 
                 <div class="form-group">
-                    <label>Precio de Costo</label>
-                    <input type="number" step="0.01" name="cost_price" id="editCost" class="form-control" required>
+                    <label>Fecha de Vencimiento</label>
+                    <input type="date" name="expiration_date" id="editExp" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label>Precio de Venta</label>
-                    <input type="number" step="0.01" name="sale_price" id="editSale" class="form-control" required>
+                    <label>Stock Disponible</label>
+                    <input type="number" name="stock" id="editStock" class="form-control" min="0" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Precio de Costo (C$)</label>
+                    <input type="number" step="0.01" min="0.01" name="cost_price" id="editCost" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Precio de Venta (C$)</label>
+                    <input type="number" step="0.01" min="0.01" name="sale_price" id="editSale" class="form-control" required>
+                </div>
+
+                <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; background: rgba(255,255,255,0.05); padding: 0.75rem; border-radius: 0.375rem;">
+                    <input type="checkbox" id="edit_is_controlled" name="is_controlled">
+                    <label for="edit_is_controlled" style="margin-bottom: 0; cursor: pointer;">
+                        <strong>Fármaco Controlado (Psicotrópico)</strong>
+                    </label>
+                </div>
+                <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; background: rgba(255,255,255,0.05); padding: 0.75rem; border-radius: 0.375rem;">
+                    <input type="checkbox" id="edit_is_exempt" name="is_exempt_iva">
+                    <label for="edit_is_exempt" style="margin-bottom: 0; cursor: pointer;">
+                        <strong>Exento de IVA (Art. 153 Ley 822)</strong>
+                    </label>
                 </div>
 
                 <div class="form-group full-width">
                     <label>Descripción / Indicaciones</label>
-                    <textarea name="description" id="editDesc" class="form-control"></textarea>
+                    <textarea name="description" id="editDesc" class="form-control" rows="2"></textarea>
                 </div>
             </div>
-            <button type="submit" class="btn" style="width: 100%; margin-top: 1rem;">Actualizar Médico</button>
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+                <i class="fas fa-sync"></i> Actualizar Medicamento
+            </button>
         </form>
     </div>
 </div>
@@ -251,12 +433,12 @@
 <div id="restockModal" class="modal">
     <div class="modal-content" style="max-width: 400px;">
         <div class="modal-header">
-            <h3>Ingreso de Stock</h3>
+            <h3>Ingreso de Stock a Lote</h3>
             <button class="close-btn" onclick="closeModal('restockModal')">&times;</button>
         </div>
         <form id="restockForm" method="POST">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <p>Producto: <strong id="restockProductName"></strong></p>
+            <p>Medicamento: <strong id="restockProductName"></strong></p>
             <div class="form-group" style="margin-top: 1rem;">
                 <label>Cantidad a Ingresar</label>
                 <input type="number" name="added_quantity" class="form-control" min="1" value="1" required>
@@ -269,7 +451,7 @@
 </div>
 
 <script>
-    function openEditModal(id, name, generic, code, stock, pres, lab, exp, dose, cost, sale, desc) {
+    function openEditModal(id, name, generic, code, stock, pres, lab, exp, dose, cost, sale, desc, sanitary, batch, controlled, exempt) {
         document.getElementById('editForm').action = "/inventory/update/" + id;
         document.getElementById('editName').value = name;
         document.getElementById('editGeneric').value = generic;
@@ -282,6 +464,10 @@
         document.getElementById('editCost').value = cost;
         document.getElementById('editSale').value = sale;
         document.getElementById('editDesc').value = desc;
+        document.getElementById('editSanitary').value = sanitary || 'MINSA-REG-2024-001';
+        document.getElementById('editBatch').value = batch || 'LOT-GEN-01';
+        document.getElementById('edit_is_controlled').checked = !!controlled;
+        document.getElementById('edit_is_exempt').checked = !!exempt;
         openModal('editModal');
     }
 
@@ -289,46 +475,6 @@
         document.getElementById('restockForm').action = "/inventory/restock/" + id;
         document.getElementById('restockProductName').textContent = name;
         openModal('restockModal');
-    }
-
-    // Populate laboratories filter dropdown
-    document.addEventListener("DOMContentLoaded", function() {
-        const rows = document.querySelectorAll(".product-row");
-        const labs = new Set();
-        rows.forEach(row => {
-            const lab = row.getAttribute("data-lab");
-            if (lab) labs.add(lab);
-        });
-        
-        const labSelect = document.getElementById("labSelect");
-        labs.forEach(lab => {
-            const opt = document.createElement("option");
-            opt.value = lab;
-            opt.textContent = lab;
-            labSelect.appendChild(opt);
-        });
-    });
-
-    function filterInventory() {
-        const searchVal = document.getElementById("searchInput").value.toLowerCase();
-        const labVal = document.getElementById("labSelect").value;
-        const rows = document.querySelectorAll(".product-row");
-        
-        rows.forEach(row => {
-            const name = row.getAttribute("data-name");
-            const generic = row.getAttribute("data-generic");
-            const code = row.getAttribute("data-code");
-            const lab = row.getAttribute("data-lab");
-            
-            const matchesSearch = name.includes(searchVal) || generic.includes(searchVal) || code.includes(searchVal);
-            const matchesLab = !labVal || lab === labVal;
-            
-            if (matchesSearch && matchesLab) {
-                row.style.display = "";
-            } else {
-                row.style.display = "none";
-            }
-        });
     }
 </script>
 {% endblock %}

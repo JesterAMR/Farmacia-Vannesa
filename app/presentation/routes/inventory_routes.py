@@ -12,8 +12,20 @@ def create_inventory_blueprint(inventory_service: InventoryService, audit_servic
     @admin_required
     def list_products():
         show_inactive = request.args.get('show_inactive', 'false') == 'true'
-        products = inventory_service.get_all_products(include_inactive=show_inactive)
-        return render_template('inventory.html', products=products, show_inactive=show_inactive)
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+        search = request.args.get('search', '').strip()
+
+        pagination = inventory_service.get_paginated_products(
+            page=page, per_page=per_page, search=search, include_inactive=show_inactive
+        )
+        return render_template(
+            'inventory.html',
+            products=pagination['items'],
+            pagination=pagination,
+            search=search,
+            show_inactive=show_inactive
+        )
 
     @bp.route('/add', methods=['POST'])
     @login_required
@@ -23,26 +35,34 @@ def create_inventory_blueprint(inventory_service: InventoryService, audit_servic
         generic_name = request.form.get('generic_name')
         product_code = request.form.get('product_code')
         description = request.form.get('description', '')
-        stock = int(request.form.get('stock'))
+        stock = int(request.form.get('stock', 0))
         presentation = request.form.get('presentation')
         laboratory = request.form.get('laboratory')
         expiration_date = request.form.get('expiration_date')
         dose = request.form.get('dose')
-        cost_price = float(request.form.get('cost_price'))
-        sale_price = float(request.form.get('sale_price'))
+        cost_price = float(request.form.get('cost_price', 0))
+        sale_price = float(request.form.get('sale_price', 0))
+        
+        # Nuevos campos de Regulación Sanitaria MINSA y Fiscal DGI
+        sanitary_register = request.form.get('sanitary_register', 'MINSA-REG-2024-001')
+        batch_number = request.form.get('batch_number', 'LOT-GEN-01')
+        is_controlled = request.form.get('is_controlled') == 'on'
+        is_exempt_iva = request.form.get('is_exempt_iva') == 'on'
         
         try:
             product = inventory_service.create_product(
-                name, generic_name, product_code, description,
-                stock, presentation, laboratory, expiration_date, dose,
-                cost_price, sale_price
+                name=name, generic_name=generic_name, product_code=product_code, description=description,
+                stock=stock, presentation=presentation, laboratory=laboratory, expiration_date=expiration_date, dose=dose,
+                cost_price=cost_price, sale_price=sale_price,
+                sanitary_register=sanitary_register, batch_number=batch_number,
+                is_controlled=is_controlled, is_exempt_iva=is_exempt_iva
             )
             audit_service.log_action(
                 action=f"Creó medicamento: {product.name}",
                 user_id=session.get('user_id'),
-                details=f"Código: {product.product_code}, Stock inicial: {product.stock}"
+                details=f"Código: {product.product_code}, Reg. MINSA: {product.sanitary_register}, Lote: {product.batch_number}, Stock: {product.stock}"
             )
-            flash('Medicamento agregado correctamente', 'success')
+            flash('Medicamento agregado correctamente con validación MINSA/DGI', 'success')
         except ValueError as e:
             flash(str(e), 'error')
         except Exception as e:
@@ -68,12 +88,18 @@ def create_inventory_blueprint(inventory_service: InventoryService, audit_servic
             product.cost_price = float(request.form.get('cost_price'))
             product.sale_price = float(request.form.get('sale_price'))
             
+            # Nuevos campos de Regulación Sanitaria y Fiscal
+            product.sanitary_register = request.form.get('sanitary_register', product.sanitary_register)
+            product.batch_number = request.form.get('batch_number', product.batch_number)
+            product.is_controlled = request.form.get('is_controlled') == 'on'
+            product.is_exempt_iva = request.form.get('is_exempt_iva') == 'on'
+            
             try:
                 inventory_service.update_product(product)
                 audit_service.log_action(
                     action=f"Actualizó medicamento: {product.name}",
                     user_id=session.get('user_id'),
-                    details=f"ID: {product.id}, Código: {product.product_code}, Nuevo Stock: {product.stock}"
+                    details=f"ID: {product.id}, Reg. MINSA: {product.sanitary_register}, Lote: {product.batch_number}"
                 )
                 flash('Medicamento actualizado correctamente', 'success')
             except ValueError as e:

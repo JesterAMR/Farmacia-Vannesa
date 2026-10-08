@@ -27,6 +27,36 @@ class SupabaseClientRepository(ClientRepositoryInterface):
             logging.error(f"[SupabaseClientRepository] get_all error: {e}")
             return []
 
+    def get_paginated(self, page: int = 1, per_page: int = 10, search: Optional[str] = None):
+        try:
+            query = self.db.table('clients').select('*', count='exact')
+            if search:
+                s = search.strip()
+                query = query.or_(f"name.ilike.%{s}%,identity_card.ilike.%{s}%,phone.ilike.%{s}%")
+            start = (page - 1) * per_page
+            end = start + per_page - 1
+            response = query.range(start, end).execute()
+            clients = []
+            for row in response.data or []:
+                clients.append(Client(
+                    id=row.get('id'),
+                    name=row.get('name', 'Consumidor Final'),
+                    identity_card=row.get('identity_card', ''),
+                    email=row.get('email'),
+                    phone=row.get('phone')
+                ))
+            total = response.count if response.count is not None else len(clients)
+            return clients, total
+        except Exception as e:
+            logging.warning(f"[SupabaseClientRepository] Fallback get_paginated: {e}")
+            all_c = self.get_all()
+            if search:
+                s = search.lower().strip()
+                all_c = [c for c in all_c if s in c.name.lower() or s in c.identity_card.lower() or (c.phone and s in c.phone.lower())]
+            total = len(all_c)
+            st = (page - 1) * per_page
+            return all_c[st:st + per_page], total
+
     def get_by_id(self, client_id: int) -> Optional[Client]:
         try:
             response = self.db.table('clients').select('*').eq('id', client_id).execute()

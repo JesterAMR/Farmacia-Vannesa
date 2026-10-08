@@ -10,25 +10,57 @@
 .full-width {
     grid-column: 1 / -1;
 }
+.pagination-btn {
+    padding: 0.4rem 0.8rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-color, #e2e8f0);
+    background: rgba(255, 255, 255, 0.05);
+    transition: all 0.2s;
+}
+.pagination-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+.pagination-btn.active {
+    background: var(--primary, #3b82f6);
+    color: white;
+    font-weight: bold;
+    border-color: var(--primary, #3b82f6);
+}
 </style>
 
 <div class="glass-panel" style="display: flex; justify-content: space-between; align-items: center;">
     <div>
         <h1>Gestión de Clientes</h1>
-        <p>Catálogo unificado para facturación personalizada</p>
+        <p>Directorio tributario para facturación electrónica conforme a la <strong>Ley 822 (DGI)</strong></p>
     </div>
     <div>
         <button class="btn btn-success" onclick="openModal('addClientModal')">
-            <i class="fas fa-plus"></i> Nuevo Cliente
+            <i class="fas fa-user-plus"></i> Nuevo Cliente
         </button>
     </div>
 </div>
 
 <div class="glass-panel" style="margin-bottom: 2rem; padding: 1.5rem;">
-    <div class="form-group" style="margin-bottom: 0;">
-        <label for="clientSearchInput" style="margin-bottom: 0.25rem;">Buscar Cliente</label>
-        <input type="text" id="clientSearchInput" class="form-control" placeholder="Buscar por nombre, cédula, RUC, correo o teléfono..." onkeyup="filterClients()">
-    </div>
+    <form method="GET" action="{{ url_for('client.index') }}" style="display: flex; gap: 1rem; align-items: flex-end;">
+        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+            <label for="clientSearchInput" style="margin-bottom: 0.25rem;">Buscar Cliente</label>
+            <input type="text" id="clientSearchInput" name="search" value="{{ search or '' }}" class="form-control" placeholder="Buscar por nombre, Cédula nicaragüense, RUC o teléfono...">
+        </div>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-search"></i> Buscar
+        </button>
+        {% if search %}
+        <a href="{{ url_for('client.index') }}" class="btn" style="background: rgba(255,255,255,0.1);">
+            <i class="fas fa-times"></i> Limpiar
+        </a>
+        {% endif %}
+    </form>
 </div>
 
 <div class="glass-panel" style="overflow-x: auto;">
@@ -36,8 +68,8 @@
         <thead>
             <tr>
                 <th>ID</th>
-                <th>Nombre</th>
-                <th>Cédula/RUC</th>
+                <th>Nombre o Razón Social</th>
+                <th>Cédula / RUC (DGI)</th>
                 <th>Email</th>
                 <th>Teléfono</th>
                 <th>Acciones</th>
@@ -45,14 +77,14 @@
         </thead>
         <tbody>
             {% for client in clients %}
-            <tr class="client-row" data-name="{{ client.name|lower }}" data-identity="{{ client.identity_card|lower }}" data-email="{{ (client.email or '')|lower }}" data-phone="{{ (client.phone or '')|lower }}">
-                <td>{{ client.id }}</td>
+            <tr class="client-row">
+                <td>#{{ client.id }}</td>
                 <td><strong>{{ client.name }}</strong></td>
-                <td>{{ client.identity_card }}</td>
+                <td><code>{{ client.identity_card }}</code></td>
                 <td>{{ client.email or 'N/A' }}</td>
                 <td>{{ client.phone or 'N/A' }}</td>
                 <td>
-                    <button class="btn" style="padding: 0.25rem 0.5rem; background: var(--primary);" onclick="openEditClientModal({{ client.id }}, '{{ client.name|replace("'", "\\'") }}', '{{ client.identity_card|replace("'", "\\'") }}', '{{ (client.email or "")|replace("'", "\\'") }}', '{{ (client.phone or "")|replace("'", "\\'") }}')">
+                    <button class="btn btn-primary" style="padding: 0.25rem 0.5rem;" onclick="openEditClientModal({{ client.id }}, '{{ client.name|replace("'", "\\'") }}', '{{ client.identity_card|replace("'", "\\'") }}', '{{ (client.email or "")|replace("'", "\\'") }}', '{{ (client.phone or "")|replace("'", "\\'") }}')" title="Editar">
                         <i class="fas fa-edit"></i>
                     </button>
                     {% if session.get('role') == 'admin' %}
@@ -65,39 +97,83 @@
                     {% endif %}
                 </td>
             </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 2rem; color: #94a3b8;">
+                    No se encontraron clientes registrados con los criterios solicitados.
+                </td>
+            </tr>
             {% endfor %}
         </tbody>
     </table>
+
+    <!-- Control de Paginación Numérica -->
+    {% if pagination and pagination.total_pages > 1 %}
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; flex-wrap: wrap; gap: 1rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
+        <div style="color: #94a3b8; font-size: 0.875rem;">
+            Página <strong>{{ pagination.page }}</strong> de <strong>{{ pagination.total_pages }}</strong> 
+            (Total de <strong>{{ pagination.total }}</strong> clientes registrados)
+        </div>
+        <div style="display: flex; gap: 0.35rem; align-items: center;">
+            {% if pagination.has_prev %}
+            <a href="{{ url_for('client.index', page=pagination.prev_page, search=search) }}" class="pagination-btn">
+                <i class="fas fa-chevron-left"></i> Anterior
+            </a>
+            {% endif %}
+
+            {% for p in range(1, pagination.total_pages + 1) %}
+                {% if p == pagination.page %}
+                <span class="pagination-btn active">{{ p }}</span>
+                {% elif p <= 3 or p >= pagination.total_pages - 2 or (p >= pagination.page - 1 and p <= pagination.page + 1) %}
+                <a href="{{ url_for('client.index', page=p, search=search) }}" class="pagination-btn">
+                    {{ p }}
+                </a>
+                {% elif p == 4 or p == pagination.total_pages - 3 %}
+                <span style="color: #64748b; padding: 0 0.25rem;">...</span>
+                {% endif %}
+            {% endfor %}
+
+            {% if pagination.has_next %}
+            <a href="{{ url_for('client.index', page=pagination.next_page, search=search) }}" class="pagination-btn">
+                Siguiente <i class="fas fa-chevron-right"></i>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Modal Agregar -->
 <div id="addClientModal" class="modal">
     <div class="modal-content" style="max-width: 600px;">
         <div class="modal-header">
-            <h3>Registro de Nuevo Cliente</h3>
+            <h3>Registro de Nuevo Cliente (DGI)</h3>
             <button class="close-btn" onclick="closeModal('addClientModal')">&times;</button>
         </div>
         <form action="{{ url_for('client.add') }}" method="POST">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="modal-grid">
                 <div class="form-group full-width">
-                    <label>Nombre Completo</label>
-                    <input type="text" name="name" class="form-control" required>
+                    <label>Nombre Completo / Razón Social</label>
+                    <input type="text" name="name" class="form-control" placeholder="Ej. Distribuidora Médica S.A. o Juan Pérez" required>
                 </div>
                 <div class="form-group full-width">
-                    <label>Cédula o RUC</label>
-                    <input type="text" name="identity_card" class="form-control" required>
+                    <label>Cédula de Identidad o RUC (DGI)</label>
+                    <input type="text" name="identity_card" class="form-control" placeholder="Ej. 001-150892-0023K o J0310000000000" required>
+                    <small style="color: #94a3b8;">Requerido para comprobantes fiscales y recetas médicas de control.</small>
                 </div>
                 <div class="form-group">
-                    <label>Correo Electrónico (Opcional)</label>
-                    <input type="email" name="email" class="form-control">
+                    <label>Correo Electrónico (Para envío de Factura)</label>
+                    <input type="email" name="email" class="form-control" placeholder="correo@ejemplo.com">
                 </div>
                 <div class="form-group">
-                    <label>Teléfono (Opcional)</label>
-                    <input type="text" name="phone" class="form-control">
+                    <label>Teléfono de Contacto</label>
+                    <input type="text" name="phone" class="form-control" placeholder="Ej. +505 8888-1234">
                 </div>
             </div>
-            <button type="submit" class="btn btn-success" style="width: 100%; margin-top: 1rem;">Registrar Cliente</button>
+            <button type="submit" class="btn btn-success" style="width: 100%; margin-top: 1rem;">
+                <i class="fas fa-save"></i> Registrar Cliente
+            </button>
         </form>
     </div>
 </div>
@@ -113,7 +189,7 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="modal-grid">
                 <div class="form-group full-width">
-                    <label>Nombre Completo</label>
+                    <label>Nombre Completo / Razón Social</label>
                     <input type="text" name="name" id="editClientName" class="form-control" required>
                 </div>
                 <div class="form-group full-width">
@@ -129,7 +205,9 @@
                     <input type="text" name="phone" id="editClientPhone" class="form-control">
                 </div>
             </div>
-            <button type="submit" class="btn" style="width: 100%; margin-top: 1rem;">Actualizar Cliente</button>
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+                <i class="fas fa-sync"></i> Actualizar Cliente
+            </button>
         </form>
     </div>
 </div>
@@ -142,21 +220,6 @@
         document.getElementById('editClientEmail').value = email;
         document.getElementById('editClientPhone').value = phone;
         openModal('editClientModal');
-    }
-
-    function filterClients() {
-        const searchVal = document.getElementById("clientSearchInput").value.toLowerCase();
-        const rows = document.querySelectorAll(".client-row");
-        
-        rows.forEach(row => {
-            const name = row.getAttribute("data-name");
-            const identity = row.getAttribute("data-identity");
-            const email = row.getAttribute("data-email");
-            const phone = row.getAttribute("data-phone");
-            
-            const match = name.includes(searchVal) || identity.includes(searchVal) || email.includes(searchVal) || phone.includes(searchVal);
-            row.style.display = match ? "" : "none";
-        });
     }
 </script>
 {% endblock %}

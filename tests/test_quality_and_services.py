@@ -293,3 +293,119 @@ def test_inventory_movement_operations(services):
     metrics = mov_srv.get_metrics()
     assert isinstance(metrics, dict)
 
+def test_nicaragua_regulatory_minsa_and_dgi_fiscal(services):
+    """Verifica cumplimiento de Ley 292 (MINSA) y Ley 822 (DGI Facturación Fiscal)."""
+    inv_srv = services["inventory"]
+    sales_srv = services["sales"]
+
+    # 1. Crear producto con Registro Sanitario MINSA y Lote (Exento de IVA - Art. 153 LCT)
+    p_exento = inv_srv.create_product(
+        name="Paracetamol 500mg MK",
+        generic_name="Paracetamol",
+        product_code="MED-PCM-500",
+        description="Analgésico",
+        stock=20,
+        presentation="Caja 20 tabletas",
+        laboratory="MK",
+        expiration_date="2027-10-31",
+        dose="500mg",
+        cost_price=10.0,
+        sale_price=20.0,
+        sanitary_register="MINSA-REG-2024-0012",
+        batch_number="LOT-2026-A1",
+        is_controlled=False,
+        is_exempt_iva=True
+    )
+    assert p_exento.sanitary_register == "MINSA-REG-2024-0012"
+    assert p_exento.batch_number == "LOT-2026-A1"
+
+    # 2. Crear producto cosmético gravado con IVA 15%
+    p_gravado = inv_srv.create_product(
+        name="Bloqueador Solar SPF 50",
+        generic_name="Protector Solar",
+        product_code="COS-SUN-050",
+        description="Cuidado de la piel",
+        stock=10,
+        presentation="Frasco 120ml",
+        laboratory="Nivea",
+        expiration_date="2028-05-15",
+        dose="120ml",
+        cost_price=100.0,
+        sale_price=200.0,
+        sanitary_register="MINSA-COS-2023-098",
+        batch_number="LOT-2026-SUN",
+        is_controlled=False,
+        is_exempt_iva=False
+    )
+    assert p_gravado.is_exempt_iva is False
+
+    # 3. Crear producto controlado (Psicotrópico)
+    p_controlado = inv_srv.create_product(
+        name="Clonazepam 2mg",
+        generic_name="Clonazepam",
+        product_code="MED-CLZ-002",
+        description="Ansiolítico controlado",
+        stock=10,
+        presentation="Caja 30 tabletas",
+        laboratory="Roche",
+        expiration_date="2027-12-31",
+        dose="2mg",
+        cost_price=50.0,
+        sale_price=80.0,
+        sanitary_register="MINSA-PSI-2022-044",
+        batch_number="LOT-CLZ-99",
+        is_controlled=True,
+        is_exempt_iva=True
+    )
+
+    # 4. Intentar vender medicamento controlado sin datos de médico: debe fallar por Ley 292
+    with pytest.raises(ValueError, match="médico prescriptor"):
+        sales_srv.create_sale(items_data=[{"product_id": p_controlado.id, "quantity": 1}])
+
+    # 5. Venta mixta legal con receta y desglose fiscal DGI
+    sale = sales_srv.create_sale(
+        items_data=[
+            {"product_id": p_exento.id, "quantity": 2},     # 2 * 20 = 40 (Exento)
+            {"product_id": p_gravado.id, "quantity": 1},    # 1 * 200 = 200 + 30 IVA = 230
+            {"product_id": p_controlado.id, "quantity": 1}   # 1 * 80 = 80 (Exento)
+        ],
+        prescription_doctor="Dr. Carlos Mendoza",
+        doctor_minsa_code="MINSA-MED-9941",
+        prescription_number="REC-2026-0811"
+    )
+
+    # Total esperado: 40 + 80 = 120 exento; 200 gravado; IVA = 30; Total = 350
+    assert sale.subtotal_exempt == 120.0
+    assert sale.subtotal_taxable == 200.0
+    assert sale.iva_total == 30.0
+    assert sale.total == 350.0
+    assert sale.total_usd == round(350.0 / 36.62, 2)
+    assert sale.dgi_auth_number is not None
+    assert "FacturaElectronica" in sale.fiscal_xml
+    assert "Dr. Carlos Mendoza" in sale.fiscal_xml
+
+def test_pagination_inventory_and_clients(services):
+    """Verifica que la paginación funcione correctamente en inventario y clientes."""
+    inv_srv = services["inventory"]
+    cli_srv = services["client"]
+
+    # Probar paginación de inventario
+    page_1 = inv_srv.get_paginated_products(page=1, per_page=2)
+    assert "items" in page_1
+    assert "total" in page_1
+    assert len(page_1["items"]) <= 2
+    assert page_1["page"] == 1
+    assert page_1["total_pages"] >= 1
+
+    # Probar paginación de clientes
+    cli_srv.create_client(name="Cliente Paginacion A", identity_card="001-010190-0001A")
+    cli_srv.create_client(name="Cliente Paginacion B", identity_card="001-010190-0002B")
+    cli_srv.create_client(name="Cliente Paginacion C", identity_card="001-010190-0003C")
+
+    cli_pag = cli_srv.get_paginated_clients(page=1, per_page=2)
+    assert len(cli_pag["items"]) == 2
+    assert cli_pag["total"] >= 3
+    assert cli_pag["total_pages"] >= 2
+    assert cli_pag["has_next"] is True
+
+
